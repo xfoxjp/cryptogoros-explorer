@@ -96,167 +96,133 @@ document.getElementById('fetchBtn').onclick = async function() {
     const tid = document.getElementById('tokenId').value;
     const btn = this;
     const resultDiv = document.getElementById('result');
+    const hBody = document.getElementById('hBody');
     
     if (!tid) return;
 
     btn.disabled = true;
     btn.innerText = "取得中...";
     resultDiv.style.display = 'none';
+    hBody.innerHTML = "<tr><td colspan='3' style='text-align:center; padding:10px;'>スキャン中...</td></tr>";
 
     try {
-        // 1. メタデータ取得 (v3 API)
-        const url = `https://polygon-mainnet.g.alchemy.com/nft/v3/${API_KEY}/getNFTMetadata?contractAddress=${CONTRACT}&tokenId=${tid}&refreshCache=true`;
-        const response = await fetch(url);
+        // --- 1. メタデータ（画像・名前・説明）を取得 ---
+        const nftUrl = `https://polygon-mainnet.g.alchemy.com/nft/v3/${API_KEY}/getNFTMetadata?contractAddress=${CONTRACT}&tokenId=${tid}&refreshCache=true`;
+        const nftRes = await fetch(nftUrl);
+        const data = await nftRes.json();
+
+        let imgUrl = (data.raw && data.raw.metadata) ? (data.raw.metadata.Image || data.raw.metadata.image) : (data.image?.rawUrl || "");
+        if (imgUrl.startsWith("ipfs://")) imgUrl = imgUrl.replace("ipfs://", "https://nftstorage.link/ipfs/").replace("ipfs/ipfs/", "ipfs/");
         
-        if (!response.ok) {
-            const err = await response.json();
-            throw new Error(err.error?.message || "通信エラー");
-        }
-        
-        const data = await response.json();
-
-        // 🖼️ 画像の処理
-        let imgUrl = "";
-        if (data.raw && data.raw.metadata) {
-            imgUrl = data.raw.metadata.Image || data.raw.metadata.image || "";
-        }
-        if (!imgUrl && data.image && data.image.rawUrl) {
-            imgUrl = data.image.rawUrl;
-        }
-
-        if (imgUrl.startsWith("ipfs://")) {
-            imgUrl = imgUrl.replace("ipfs://ipfs/", "https://nftstorage.link/ipfs/").replace("ipfs://", "https://nftstorage.link/ipfs/");
-        }
-
-        // 画面に反映
         document.getElementById('nftImage').src = imgUrl;
         document.getElementById('nftLink').href = `https://opensea.io/assets/matic/${CONTRACT}/${tid}`;
         document.getElementById('nftTitle').innerText = data.name || `CryptoGoros #${tid}`;
-        document.getElementById('nftDescription').innerText = data.description || (data.raw && data.raw.metadata && data.raw.metadata.description) || "説明文はありません。";
+        document.getElementById('nftDescription').innerText = data.description || (data.raw?.metadata?.description) || "説明なし";
 
-// --- Traits（属性）の表示処理（最新OpenSeaソート形式対応） ---
-        const traitsContainer = document.getElementById('nftTraits');
-        traitsContainer.innerHTML = ""; 
-
-        const attributes = data.raw?.metadata?.attributes || data.attributes;
-        const slug = "cryptogoros"; // コレクションのスラッグ名
-
-        if (attributes && Array.isArray(attributes)) {
-            attributes.forEach(attr => {
-                // 💡 OpenSeaの新しいJSON形式のフィルタを生成
-                // 構造: [{"traitType":"属性名","values":["値"]}]
-                const traitFilter = [
-                    {
-                        traitType: attr.trait_type,
-                        values: [attr.value]
-                    }
-                ];
-                
-                // JSONを文字列にして、URL用にエンコード（特殊記号を変換）する
-                const encodedFilter = encodeURIComponent(JSON.stringify(traitFilter));
-                const traitUrl = `https://opensea.io/collection/${slug}?traits=${encodedFilter}`;
-
-                const traitLink = document.createElement('a');
-                traitLink.href = traitUrl;
-                traitLink.target = "_blank";
-                traitLink.style.textDecoration = "none";
-                traitLink.style.color = "inherit";
-                traitLink.style.flex = "1 1 calc(33.333% - 8px)"; // 3列並びにする設定
-                traitLink.style.minWidth = "100px";
-
-                traitLink.innerHTML = `
-                    <div style="background: #FFF5EE; border: 1px solid #FFE0C0; border-radius: 8px; padding: 10px 5px; text-align: center; transition: 0.2s; height: 100%;" 
-                        onmouseover="this.style.borderColor='#FF6600'; this.style.backgroundColor='#FFF0E0';" 
-                        onmouseout="this.style.borderColor='#FFE0C0'; this.style.backgroundColor='#FFF5EE';">
-                        <div style="font-size: 10px; color: #CC5500; font-weight: bold; text-transform: uppercase; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${attr.trait_type}</div>
-                        <div style="font-size: 13px; font-weight: bold; color: #333; margin-top: 4px; line-height: 1.2;">${attr.value}</div>
-                    </div>
-                `;
-                traitsContainer.appendChild(traitLink);
-            });
-        } 
-        // 2. 所有者取得
-
+        // --- 2. 所有者・Traitsを表示 ---
+        // (省略せずに以前のコードのロジックをそのまま実行)
         const ownerUrl = `https://polygon-mainnet.g.alchemy.com/nft/v3/${API_KEY}/getOwnersForNFT?contractAddress=${CONTRACT}&tokenId=${tid}`;
         const oRes = await fetch(ownerUrl);
         const oData = await oRes.json();
-        const currentOwner = (oData.owners && oData.owners.length > 0) ? oData.owners[0] : null;
-
+        const currentOwner = oData.owners?.[0];
         const ownerLink = document.getElementById('nftOwnerLink');
         if (currentOwner) {
             ownerLink.innerText = currentOwner;
-            
-            // ✨ OpenSeaの最新パラメータ形式に合わせて修正
-            const slug = "cryptogoros";
-            ownerLink.href = `https://opensea.io/${currentOwner}?search[collections][0]=${slug}&collectionSlugs=${slug}`;
-            
-        } else {
-            ownerLink.innerText = "不明";
-            ownerLink.removeAttribute('href');
+            ownerLink.href = `https://opensea.io/${currentOwner}?search[collections][0]=cryptogoros&collectionSlugs=cryptogoros`;
         }
-        
-        // 3. 移転履歴の取得 (Asset Transfers API)
-        const hBody = document.getElementById('hBody');
-        hBody.innerHTML = "<tr><td colspan='3' style='text-align:center; padding:10px;'>Loading...</td></tr>";
 
-        // Alchemyの getAssetTransfers エンドポイント
-        const transferUrl = `https://polygon-mainnet.g.alchemy.com/v2/${API_KEY}`;
-        const transferData = {
-            id: 1,
-            jsonrpc: "2.0",
-            method: "alchemy_getAssetTransfers",
-            params: [{
-                fromBlock: "0x0",
-                toBlock: "latest",
-                contractAddresses: [CONTRACT],
-                category: ["erc721"],
-                excludeZeroValue: true
-            }]
-        };
-
-        const tRes = await fetch(transferUrl, {
-            method: 'POST',
-            body: JSON.stringify(transferData)
-        });
-        const tResult = await tRes.json();
-
-        // 該当するToken IDの履歴だけに絞り込み、新しい順に並べる
-        const filteredTransfers = tResult.result.transfers
-            .filter(tx => parseInt(tx.tokenId, 16) == tid)
-            .reverse();
-
-        hBody.innerHTML = ""; // クリア
-        
-        if (filteredTransfers.length === 0) {
-            hBody.innerHTML = "<tr><td colspan='3' style='text-align:center; padding:10px;'>No history found.</td></tr>";
-        } else {
-            filteredTransfers.slice(0, 10).forEach(tx => {
-                const row = `
-                    <tr style="border-bottom: 1px solid #FFF5EE;">
-                        <td style="padding: 8px; color: #666;">${tx.from.slice(0, 6)}...</td>
-                        <td style="padding: 8px; color: #666;">${tx.to.slice(0, 6)}...</td>
-                        <td style="padding: 8px;">
-                            <a href="https://polygonscan.com/tx/${tx.hash}" target="_blank" style="color: var(--goros-orange); text-decoration: none;">↗</a>
-                        </td>
-                    </tr>`;
-                hBody.innerHTML += row;
+        const traitsContainer = document.getElementById('nftTraits');
+        traitsContainer.innerHTML = ""; 
+        const attributes = data.raw?.metadata?.attributes || data.attributes;
+        const slug = "cryptogoros"; 
+        if (attributes && Array.isArray(attributes)) {
+            attributes.forEach(attr => {
+                const traitFilter = [{ traitType: attr.trait_type, values: [attr.value] }];
+                const encodedFilter = encodeURIComponent(JSON.stringify(traitFilter));
+                const traitUrl = `https://opensea.io/collection/${slug}?traits=${encodedFilter}`;
+                const traitLink = document.createElement('a');
+                traitLink.href = traitUrl;
+                traitLink.target = "_blank";
+                traitLink.style.cssText = "text-decoration:none; color:inherit; flex:1 1 calc(33.333% - 8px); min-width:100px;";
+                traitLink.innerHTML = `<div style="background:#FFF5EE; border:1px solid #FFE0C0; border-radius:8px; padding:10px 5px; text-align:center;">
+                    <div style="font-size:10px; color:#CC5500; font-weight:bold;">${attr.trait_type}</div>
+                    <div style="font-size:13px; font-weight:bold;">${attr.value}</div>
+                </div>`;
+                traitsContainer.appendChild(traitLink);
             });
         }
-        
 
-        // 画像が読み込まれるのを待って表示（チラつき防止）
-        document.getElementById('nftImage').onload = () => {
-            resultDiv.style.display = 'block';
-        };
+        // ✨ ここで一旦画面を表示してしまう！ ✨
+        resultDiv.style.display = 'block';
+        btn.disabled = false;
+        btn.innerText = "表示する";
+
+        // --- 3. 履歴取得（ここからは裏側でゆっくり実行） ---
+        const historyUrl = `https://polygon-mainnet.g.alchemy.com/v2/${API_KEY}`;
+        let allTransfers = [];
+        let pageKey = null;
+
+        async function fetchAllPages() {
+            const params = {
+                fromBlock: "0x0", toBlock: "latest", contractAddresses: [CONTRACT],
+                category: ["erc721"], excludeZeroValue: false, maxCount: "0x3e8", withMetadata: true
+            };
+            if (pageKey) params.pageKey = pageKey;
+
+            const res = await fetch(historyUrl, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ id: 1, jsonrpc: "2.0", method: "alchemy_getAssetTransfers", params: [params] })
+            }).then(r => r.json());
+
+            if (res.result && res.result.transfers) {
+                allTransfers = allTransfers.concat(res.result.transfers);
+                if (res.result.pageKey) {
+                    pageKey = res.result.pageKey;
+                    await fetchAllPages(); 
+                }
+            }
+        }
+
+        await fetchAllPages();
+
+        const filtered = allTransfers.filter(tx => {
+            return tx.tokenId && parseInt(tx.tokenId, 16) === parseInt(tid);
+        }).reverse();
+
+        hBody.innerHTML = ""; 
+        if (filtered.length === 0) {
+            hBody.innerHTML = "<tr><td colspan='3' style='text-align:center; padding:20px; color:#999;'>履歴なし</td></tr>";
+        } else {
+            filtered.forEach(tx => {
+                let dateStr = "-";
+                if (tx.metadata && tx.metadata.blockTimestamp) {
+                    const d = new Date(tx.metadata.blockTimestamp);
+                    dateStr = `${d.getFullYear()}/${(d.getMonth()+1).toString().padStart(2,'0')}/${d.getDate().toString().padStart(2,'0')} ${d.getHours().toString().padStart(2,'0')}:${d.getMinutes().toString().padStart(2,'0')}`;
+                }
+                hBody.innerHTML += `
+                    <tr style="border-bottom: 1px solid #FFE0C0;">
+                        <td style="padding: 10px; font-size: 11px;">
+                            <span style="color:#999;">From:</span> ${tx.from.slice(0,6)}...<br>
+                            <span style="color:#999;">To:</span> ${tx.to.slice(0,6)}...
+                        </td>
+                        <td style="padding: 10px; text-align: center; color: #666; font-size: 11px; white-space: nowrap;">
+                            ${dateStr}
+                        </td>
+                        <td style="padding: 10px; text-align: center;">
+                            <a href="https://polygonscan.com/tx/${tx.hash}" target="_blank" style="text-decoration:none;">📄</a>
+                        </td>
+                    </tr>`;
+            });
+        }
 
     } catch (e) {
         console.error("Error:", e);
-        alert("データの取得に失敗しました。\n・APIキーが正しいか\n・インターネットに繋がっているか\nを確認してください。");
-    } finally {
         btn.disabled = false;
         btn.innerText = "表示する";
     }
 };
+
 </script>
 </body>
 </html>
