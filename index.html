@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CryptoGoros Explorer</title>
+    <style>
+        :root { --goros-orange: #FF6600; --bg-color: #FFF5EE; }
+        body { font-family: sans-serif; background: var(--bg-color); padding: 40px 20px; color: #333; margin: 0; }
+        .container { max-width: 600px; margin: auto; background: white; padding: 30px; border-radius: 20px; box-shadow: 0 10px 30px rgba(255,102,0,0.1); }
+        h1 { color: var(--goros-orange); text-align: center; margin-bottom: 20px; text-transform: uppercase; letter-spacing: 2px; }
+        .search-box { display: flex; gap: 10px; margin-bottom: 25px; }
+        input { flex: 1; padding: 12px; border: 2px solid #FFE0C0; border-radius: 10px; font-size: 16px; outline: none; }
+        input:focus { border-color: var(--goros-orange); }
+        button { padding: 12px 24px; background: var(--goros-orange); color: white; border: none; border-radius: 10px; cursor: pointer; font-weight: bold; font-size: 16px; }
+        button:disabled { background: #ccc; cursor: not-allowed; }
+        
+        #result { display: none; border-top: 2px solid #FFE0C0; padding-top: 20px; animation: fadeIn 0.5s; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        
+        /* 画像リンク */
+        #nftLink { display: block; width: 100%; border-radius: 15px; overflow: hidden; margin-bottom: 20px; box-shadow: 0 5px 15px rgba(0,0,0,0.1); transition: 0.3s; }
+        #nftLink:hover { transform: scale(1.01); box-shadow: 0 8px 25px rgba(255,102,0,0.2); }
+        .nft-img { width: 100%; display: block; }
+        
+        .info-group { margin-bottom: 20px; }
+        .info-label { font-size: 12px; color: #CC5500; font-weight: bold; margin-bottom: 5px; text-transform: uppercase; }
+        .info-value { font-size: 16px; word-break: break-all; line-height: 1.5; }
+        
+        /* オーナーリンク */
+        #nftOwnerLink { color: var(--goros-orange); text-decoration: underline; font-weight: bold; }
+        #nftOwnerLink:hover { color: #cc5500; text-decoration: none; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>CryptoGoros</h1>
+    <div class="search-box">
+        <input type="number" id="tokenId" placeholder="IDを入力" value="1">
+        <button id="fetchBtn">表示する</button>
+    </div>
+
+    <div id="result">
+        <a id="nftLink" href="#" target="_blank">
+            <img id="nftImage" class="nft-img" src="" alt="NFT">
+        </a>
+
+        <div class="info-group">
+            <div class="info-label">Name</div>
+            <div id="nftTitle" class="info-value" style="font-weight: bold; font-size: 20px;"></div>
+        </div>
+
+        <div class="info-group">
+            <div class="info-label">Owner (Click to see their CryptoGoro collection)</div>
+            <div class="info-value">
+                <a id="nftOwnerLink" href="#" target="_blank"></a>
+            </div>
+        </div>
+
+        <div class="info-group">
+            <div class="info-label">Description</div>
+            <div id="nftDescription" class="info-value" style="color: #555; font-size: 14px;"></div>
+        </div>
+        <div class="info-group">
+    <div class="info-label">Transfer History</div>
+    <table id="historyTable" style="width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 13px;">
+        <thead>
+            <tr style="border-bottom: 2px solid #FFE0C0; text-align: left; color: #CC5500;">
+                <th style="padding: 8px;">From</th>
+                <th style="padding: 8px;">To</th>
+                <th style="padding: 8px;">TX</th>
+            </tr>
+        </thead>
+        <tbody id="hBody">
+            </tbody>
+    </table>
+</div>
+    </div>
+</div>
+
+<script>
+// --- ⚠️ 設定: ここに自分のAPIキーを貼り付けてください ⚠️ ---
+const API_KEY = "xsfAkUztgC2QOCiy0ElXe"; 
+const CONTRACT = "0x6C621364993E5CD4C6468930d287ba76Ef64F366";
+
+document.getElementById('fetchBtn').onclick = async function() {
+    const tid = document.getElementById('tokenId').value;
+    const btn = this;
+    const resultDiv = document.getElementById('result');
+    
+    if (!tid) return;
+
+    btn.disabled = true;
+    btn.innerText = "取得中...";
+    resultDiv.style.display = 'none';
+
+    try {
+        // 1. メタデータ取得 (v3 API)
+        const url = `https://polygon-mainnet.g.alchemy.com/nft/v3/${API_KEY}/getNFTMetadata?contractAddress=${CONTRACT}&tokenId=${tid}&refreshCache=true`;
+        const response = await fetch(url);
+        
+        if (!response.ok) {
+            const err = await response.json();
+            throw new Error(err.error?.message || "通信エラー");
+        }
+        
+        const data = await response.json();
+
+        // 🖼️ 画像の処理
+        let imgUrl = "";
+        if (data.raw && data.raw.metadata) {
+            imgUrl = data.raw.metadata.Image || data.raw.metadata.image || "";
+        }
+        if (!imgUrl && data.image && data.image.rawUrl) {
+            imgUrl = data.image.rawUrl;
+        }
+
+        if (imgUrl.startsWith("ipfs://")) {
+            imgUrl = imgUrl.replace("ipfs://ipfs/", "https://nftstorage.link/ipfs/").replace("ipfs://", "https://nftstorage.link/ipfs/");
+        }
+
+        // 画面に反映
+        document.getElementById('nftImage').src = imgUrl;
+        document.getElementById('nftLink').href = `https://opensea.io/assets/matic/${CONTRACT}/${tid}`;
+        document.getElementById('nftTitle').innerText = data.name || `CryptoGoros #${tid}`;
+        document.getElementById('nftDescription').innerText = data.description || (data.raw && data.raw.metadata && data.raw.metadata.description) || "説明文はありません。";
+
+        // 2. 所有者取得
+        const ownerUrl = `https://polygon-mainnet.g.alchemy.com/nft/v3/${API_KEY}/getOwnersForNFT?contractAddress=${CONTRACT}&tokenId=${tid}`;
+        const oRes = await fetch(ownerUrl);
+        const oData = await oRes.json();
+        const currentOwner = (oData.owners && oData.owners.length > 0) ? oData.owners[0] : null;
+
+        const ownerLink = document.getElementById('nftOwnerLink');
+        if (currentOwner) {
+            ownerLink.innerText = currentOwner;
+            
+            // ✨ OpenSeaの最新パラメータ形式に合わせて修正
+            const slug = "cryptogoros";
+            ownerLink.href = `https://opensea.io/${currentOwner}?search[collections][0]=${slug}&collectionSlugs=${slug}`;
+            
+        } else {
+            ownerLink.innerText = "不明";
+            ownerLink.removeAttribute('href');
+        }
+        
+        // 3. 移転履歴の取得 (Asset Transfers API)
+        const hBody = document.getElementById('hBody');
+        hBody.innerHTML = "<tr><td colspan='3' style='text-align:center; padding:10px;'>Loading...</td></tr>";
+
+        // Alchemyの getAssetTransfers エンドポイント
+        const transferUrl = `https://polygon-mainnet.g.alchemy.com/v2/${API_KEY}`;
+        const transferData = {
+            id: 1,
+            jsonrpc: "2.0",
+            method: "alchemy_getAssetTransfers",
+            params: [{
+                fromBlock: "0x0",
+                toBlock: "latest",
+                contractAddresses: [CONTRACT],
+                category: ["erc721"],
+                excludeZeroValue: true
+            }]
+        };
+
+        const tRes = await fetch(transferUrl, {
+            method: 'POST',
+            body: JSON.stringify(transferData)
+        });
+        const tResult = await tRes.json();
+
+        // 該当するToken IDの履歴だけに絞り込み、新しい順に並べる
+        const filteredTransfers = tResult.result.transfers
+            .filter(tx => parseInt(tx.tokenId, 16) == tid)
+            .reverse();
+
+        hBody.innerHTML = ""; // クリア
+        
+        if (filteredTransfers.length === 0) {
+            hBody.innerHTML = "<tr><td colspan='3' style='text-align:center; padding:10px;'>No history found.</td></tr>";
+        } else {
+            filteredTransfers.slice(0, 10).forEach(tx => {
+                const row = `
+                    <tr style="border-bottom: 1px solid #FFF5EE;">
+                        <td style="padding: 8px; color: #666;">${tx.from.slice(0, 6)}...</td>
+                        <td style="padding: 8px; color: #666;">${tx.to.slice(0, 6)}...</td>
+                        <td style="padding: 8px;">
+                            <a href="https://polygonscan.com/tx/${tx.hash}" target="_blank" style="color: var(--goros-orange); text-decoration: none;">↗</a>
+                        </td>
+                    </tr>`;
+                hBody.innerHTML += row;
+            });
+        }
+        
+
+        // 画像が読み込まれるのを待って表示（チラつき防止）
+        document.getElementById('nftImage').onload = () => {
+            resultDiv.style.display = 'block';
+        };
+
+    } catch (e) {
+        console.error("Error:", e);
+        alert("データの取得に失敗しました。\n・APIキーが正しいか\n・インターネットに繋がっているか\nを確認してください。");
+    } finally {
+        btn.disabled = false;
+        btn.innerText = "表示する";
+    }
+};
+</script>
+</body>
+</html>
