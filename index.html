@@ -62,10 +62,13 @@
             <div class="info-label">Description</div>
             <div id="nftDescription" class="info-value" style="color: #555; font-size: 14px;"></div>
         </div>
+
+        
         <div class="info-group">
     <div class="info-label">Traits</div>
-    <div id="nftTraits" style="display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px;">
-        </div>
+    <div id="nftTraits" style="display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; cursor: pointer;">
+</div>
+
 </div>
         <div class="info-group">
     <div class="info-label">Transfer History</div>
@@ -130,34 +133,50 @@ document.getElementById('fetchBtn').onclick = async function() {
         document.getElementById('nftLink').href = `https://opensea.io/assets/matic/${CONTRACT}/${tid}`;
         document.getElementById('nftTitle').innerText = data.name || `CryptoGoros #${tid}`;
         document.getElementById('nftDescription').innerText = data.description || (data.raw && data.raw.metadata && data.raw.metadata.description) || "説明文はありません。";
-// --- Traits（属性）の表示処理 ---
+
+// --- Traits（属性）の表示処理（最新OpenSeaソート形式対応） ---
         const traitsContainer = document.getElementById('nftTraits');
-        traitsContainer.innerHTML = ""; // 前のデータをクリア
+        traitsContainer.innerHTML = ""; 
 
         const attributes = data.raw?.metadata?.attributes || data.attributes;
+        const slug = "cryptogoros"; // コレクションのスラッグ名
 
         if (attributes && Array.isArray(attributes)) {
             attributes.forEach(attr => {
-                const traitCard = document.createElement('div');
-                traitCard.style.cssText = `
-                    background: #FFF5EE;
-                    border: 1px solid #FFE0C0;
-                    border-radius: 8px;
-                    padding: 8px 12px;
-                    min-width: 80px;
-                    text-align: center;
-                `;
+                // 💡 OpenSeaの新しいJSON形式のフィルタを生成
+                // 構造: [{"traitType":"属性名","values":["値"]}]
+                const traitFilter = [
+                    {
+                        traitType: attr.trait_type,
+                        values: [attr.value]
+                    }
+                ];
                 
-                traitCard.innerHTML = `
-                    <div style="font-size: 10px; color: #CC5500; font-weight: bold; text-transform: uppercase;">${attr.trait_type}</div>
-                    <div style="font-size: 13px; font-weight: bold; color: #333; margin-top: 2px;">${attr.value}</div>
+                // JSONを文字列にして、URL用にエンコード（特殊記号を変換）する
+                const encodedFilter = encodeURIComponent(JSON.stringify(traitFilter));
+                const traitUrl = `https://opensea.io/collection/${slug}?traits=${encodedFilter}`;
+
+                const traitLink = document.createElement('a');
+                traitLink.href = traitUrl;
+                traitLink.target = "_blank";
+                traitLink.style.textDecoration = "none";
+                traitLink.style.color = "inherit";
+                traitLink.style.flex = "1 1 calc(33.333% - 8px)"; // 3列並びにする設定
+                traitLink.style.minWidth = "100px";
+
+                traitLink.innerHTML = `
+                    <div style="background: #FFF5EE; border: 1px solid #FFE0C0; border-radius: 8px; padding: 10px 5px; text-align: center; transition: 0.2s; height: 100%;" 
+                        onmouseover="this.style.borderColor='#FF6600'; this.style.backgroundColor='#FFF0E0';" 
+                        onmouseout="this.style.borderColor='#FFE0C0'; this.style.backgroundColor='#FFF5EE';">
+                        <div style="font-size: 10px; color: #CC5500; font-weight: bold; text-transform: uppercase; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${attr.trait_type}</div>
+                        <div style="font-size: 13px; font-weight: bold; color: #333; margin-top: 4px; line-height: 1.2;">${attr.value}</div>
+                    </div>
                 `;
-                traitsContainer.appendChild(traitCard);
+                traitsContainer.appendChild(traitLink);
             });
-        } else {
-            traitsContainer.innerHTML = "<div style='font-size:12px; color:#999;'>No traits found.</div>";
-        }
+        } 
         // 2. 所有者取得
+
         const ownerUrl = `https://polygon-mainnet.g.alchemy.com/nft/v3/${API_KEY}/getOwnersForNFT?contractAddress=${CONTRACT}&tokenId=${tid}`;
         const oRes = await fetch(ownerUrl);
         const oData = await oRes.json();
