@@ -37,13 +37,14 @@
 <div class="container">
     <h1>CryptoGoros</h1>
     <div class="search-box">
-        <input type="number" id="tokenId" placeholder="IDを入力" value="1">
-        <button id="fetchBtn">表示する</button>
+    <input type="number" id="tokenId" placeholder="IDを入力" value="1" min="1" max="2000">
+    
+    <button id="fetchBtn">表示する</button>
     </div>
 
     <div id="result">
         <a id="nftLink" href="#" target="_blank">
-            <img id="nftImage" class="nft-img" src="" alt="NFT">
+        <div id="mediaContainer" style="..."></div>
         </a>
 
         <div class="info-group">
@@ -86,143 +87,141 @@
 </div>
     </div>
 </div>
-
 <script>
-// --- ⚠️ 設定: ここに自分のAPIキーを貼り付けてください ⚠️ ---
 const API_KEY = "xsfAkUztgC2QOCiy0ElXe"; 
 const CONTRACT = "0x6C621364993E5CD4C6468930d287ba76Ef64F366";
 
 document.getElementById('fetchBtn').onclick = async function() {
+    document.getElementById('fetchBtn').onclick = async function() {
+    let tid = document.getElementById('tokenId').value;
+    const btn = this;
+    const resultDiv = document.getElementById('result');
+    const hBody = document.getElementById('hBody');
+    const mediaContainer = document.getElementById('mediaContainer');
+    
+    // 💡 追加：IDの範囲チェック
+    const idNum = parseInt(tid);
+    if (!tid || idNum < 1 || idNum > 2000) {
+        alert("トークンIDは 1 から 2000 の間で入力してください。");
+        return;
+    }
+
+    btn.disabled = true;
+    // ...（以下、これまでのコードが続く）
     const tid = document.getElementById('tokenId').value;
     const btn = this;
     const resultDiv = document.getElementById('result');
     const hBody = document.getElementById('hBody');
+    const mediaContainer = document.getElementById('mediaContainer');
     
     if (!tid) return;
 
     btn.disabled = true;
     btn.innerText = "取得中...";
     resultDiv.style.display = 'none';
-    hBody.innerHTML = "<tr><td colspan='3' style='text-align:center; padding:10px;'>スキャン中...</td></tr>";
+    hBody.innerHTML = "<tr><td colspan='3' style='text-align:center; padding:10px;'>履歴をスキャン中...</td></tr>";
 
     try {
-        // --- 1. メタデータ（画像・名前・説明）を取得 ---
         const nftUrl = `https://polygon-mainnet.g.alchemy.com/nft/v3/${API_KEY}/getNFTMetadata?contractAddress=${CONTRACT}&tokenId=${tid}&refreshCache=true`;
         const nftRes = await fetch(nftUrl);
         const data = await nftRes.json();
 
-        let imgUrl = (data.raw && data.raw.metadata) ? (data.raw.metadata.Image || data.raw.metadata.image) : (data.image?.rawUrl || "");
-        if (imgUrl.startsWith("ipfs://")) imgUrl = imgUrl.replace("ipfs://", "https://nftstorage.link/ipfs/").replace("ipfs/ipfs/", "ipfs/");
+        mediaContainer.innerHTML = ""; 
+        const meta = data.raw?.metadata || {};
         
-        document.getElementById('nftImage').src = imgUrl;
-        document.getElementById('nftLink').href = `https://opensea.io/assets/matic/${CONTRACT}/${tid}`;
-        document.getElementById('nftTitle').innerText = data.name || `CryptoGoros #${tid}`;
-        document.getElementById('nftDescription').innerText = data.description || (data.raw?.metadata?.description) || "説明なし";
+        // --- 💡 修正ポイント：ArweaveとIPFSの両方に対応 ---
+        const formatUrl = (u) => {
+            if (!u) return "";
+            if (u.startsWith("ipfs://")) return u.replace("ipfs://", "https://ipfs.io/ipfs/").replace("ipfs/ipfs/", "ipfs/");
+            // Arweaveリンクはそのままでも通りますが、もし ar:// 形式なら変換
+            if (u.startsWith("ar://")) return u.replace("ar://", "https://arweave.net/");
+            return u;
+        };
 
-        // --- 2. 所有者・Traitsを表示 ---
-        // (省略せずに以前のコードのロジックをそのまま実行)
-        const ownerUrl = `https://polygon-mainnet.g.alchemy.com/nft/v3/${API_KEY}/getOwnersForNFT?contractAddress=${CONTRACT}&tokenId=${tid}`;
-        const oRes = await fetch(ownerUrl);
-        const oData = await oRes.json();
-        const currentOwner = oData.owners?.[0];
-        const ownerLink = document.getElementById('nftOwnerLink');
-        if (currentOwner) {
-            ownerLink.innerText = currentOwner;
-            ownerLink.href = `https://opensea.io/${currentOwner}?search[collections][0]=cryptogoros&collectionSlugs=cryptogoros`;
+        const fImg = formatUrl(meta.image || meta.Image || data.image?.rawUrl || "");
+        const fAnim = formatUrl(meta.animation_url || "");
+
+        // OpenSeaのキャッシュ画像をバックアップ用に生成
+        const osCache = `https://api.opensea.io/api/v1/asset/${CONTRACT}/${tid}/image?w=600`;
+
+        // 💡 判定：ArweaveのURLやanimation_url、または拡張子がmp4なら動画
+        const isVid = fAnim !== "" || fImg.includes("arweave.net") || fImg.toLowerCase().endsWith(".mp4");
+
+        if (isVid) {
+            const videoSrc = fAnim || fImg;
+            mediaContainer.innerHTML = `
+                <video src="${videoSrc}" autoplay loop muted playsinline controls 
+                       style="width: 100%; height: 100%; object-fit: cover; border-radius: 12px;"
+                       onerror="this.outerHTML='<img src=\'${osCache}\' style=\'width:100%;height:100%;object-fit:cover;border-radius:12px;\'>'">
+                </video>`;
+        } else {
+            mediaContainer.innerHTML = `
+                <img src="${fImg}" style="width: 100%; height: 100%; object-fit: cover; border-radius: 12px;" 
+                     onerror="this.src='${osCache}'">`;
         }
 
+        // --- 基本情報の反映 ---
+        document.getElementById('nftLink').href = `https://opensea.io/assets/matic/${CONTRACT}/${tid}`;
+        document.getElementById('nftTitle').innerText = data.name || `CryptoGoros #${tid}`;
+        document.getElementById('nftDescription').innerText = data.description || meta.description || "説明なし";
+
+        // 所有者情報 (非同期)
+        fetch(`https://polygon-mainnet.g.alchemy.com/nft/v3/${API_KEY}/getOwnersForNFT?contractAddress=${CONTRACT}&tokenId=${tid}`)
+            .then(r => r.json()).then(o => {
+                const own = o.owners?.[0];
+                if (own) {
+                    document.getElementById('nftOwnerLink').innerText = own;
+                    document.getElementById('nftOwnerLink').href = `https://opensea.io/${own}?search[collections][0]=cryptogoros&collectionSlugs=cryptogoros`;
+                }
+            });
+
+        // Traits表示
         const traitsContainer = document.getElementById('nftTraits');
         traitsContainer.innerHTML = ""; 
-        const attributes = data.raw?.metadata?.attributes || data.attributes;
-        const slug = "cryptogoros"; 
-        if (attributes && Array.isArray(attributes)) {
-            attributes.forEach(attr => {
-                const traitFilter = [{ traitType: attr.trait_type, values: [attr.value] }];
-                const encodedFilter = encodeURIComponent(JSON.stringify(traitFilter));
-                const traitUrl = `https://opensea.io/collection/${slug}?traits=${encodedFilter}`;
-                const traitLink = document.createElement('a');
-                traitLink.href = traitUrl;
-                traitLink.target = "_blank";
-                traitLink.style.cssText = "text-decoration:none; color:inherit; flex:1 1 calc(33.333% - 8px); min-width:100px;";
-                traitLink.innerHTML = `<div style="background:#FFF5EE; border:1px solid #FFE0C0; border-radius:8px; padding:10px 5px; text-align:center;">
-                    <div style="font-size:10px; color:#CC5500; font-weight:bold;">${attr.trait_type}</div>
-                    <div style="font-size:13px; font-weight:bold;">${attr.value}</div>
-                </div>`;
-                traitsContainer.appendChild(traitLink);
+        const attrs = meta.attributes || data.attributes;
+        if (attrs && Array.isArray(attrs)) {
+            attrs.forEach(a => {
+                const url = `https://opensea.io/collection/cryptogoros?traits=${encodeURIComponent(JSON.stringify([{traitType:a.trait_type, values:[a.value]}]))}`;
+                traitsContainer.innerHTML += `<a href="${url}" target="_blank" style="text-decoration:none; color:inherit; flex:1 1 calc(33.333% - 8px); min-width:100px;"><div style="background:#FFF5EE; border:1px solid #FFE0C0; border-radius:8px; padding:10px 5px; text-align:center;"><div style="font-size:10px; color:#CC5500; font-weight:bold;">${a.trait_type}</div><div style="font-size:13px; font-weight:bold;">${a.value}</div></div></a>`;
             });
         }
 
-        // ✨ ここで一旦画面を表示してしまう！ ✨
         resultDiv.style.display = 'block';
         btn.disabled = false;
         btn.innerText = "表示する";
 
-        // --- 3. 履歴取得（ここからは裏側でゆっくり実行） ---
-        const historyUrl = `https://polygon-mainnet.g.alchemy.com/v2/${API_KEY}`;
-        let allTransfers = [];
-        let pageKey = null;
-
-        async function fetchAllPages() {
-            const params = {
-                fromBlock: "0x0", toBlock: "latest", contractAddresses: [CONTRACT],
-                category: ["erc721"], excludeZeroValue: false, maxCount: "0x3e8", withMetadata: true
-            };
-            if (pageKey) params.pageKey = pageKey;
-
-            const res = await fetch(historyUrl, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ id: 1, jsonrpc: "2.0", method: "alchemy_getAssetTransfers", params: [params] })
-            }).then(r => r.json());
-
-            if (res.result && res.result.transfers) {
-                allTransfers = allTransfers.concat(res.result.transfers);
-                if (res.result.pageKey) {
-                    pageKey = res.result.pageKey;
-                    await fetchAllPages(); 
-                }
+        // 履歴取得 (バックグラウンド)
+        const histUrl = `https://polygon-mainnet.g.alchemy.com/v2/${API_KEY}`;
+        let allT = [];
+        let pKey = null;
+        const getH = async () => {
+            const p = { fromBlock:"0x0", toBlock:"latest", contractAddresses:[CONTRACT], category:["erc721"], excludeZeroValue:false, maxCount:"0x3e8", withMetadata:true };
+            if (pKey) p.pageKey = pKey;
+            const r = await fetch(histUrl, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({id:1, jsonrpc:"2.0", method:"alchemy_getAssetTransfers", params:[p]}) }).then(res => res.json());
+            if (r.result?.transfers) {
+                allT = allT.concat(r.result.transfers);
+                if (r.result.pageKey) { pKey = r.result.pageKey; await getH(); }
             }
-        }
-
-        await fetchAllPages();
-
-        const filtered = allTransfers.filter(tx => {
-            return tx.tokenId && parseInt(tx.tokenId, 16) === parseInt(tid);
-        }).reverse();
-
-        hBody.innerHTML = ""; 
-        if (filtered.length === 0) {
-            hBody.innerHTML = "<tr><td colspan='3' style='text-align:center; padding:20px; color:#999;'>履歴なし</td></tr>";
-        } else {
-            filtered.forEach(tx => {
-                let dateStr = "-";
-                if (tx.metadata && tx.metadata.blockTimestamp) {
-                    const d = new Date(tx.metadata.blockTimestamp);
-                    dateStr = `${d.getFullYear()}/${(d.getMonth()+1).toString().padStart(2,'0')}/${d.getDate().toString().padStart(2,'0')} ${d.getHours().toString().padStart(2,'0')}:${d.getMinutes().toString().padStart(2,'0')}`;
+        };
+        getH().then(() => {
+            const fil = allT.filter(x => x.tokenId && parseInt(x.tokenId, 16) === parseInt(tid)).reverse();
+            hBody.innerHTML = fil.length ? "" : "<tr><td colspan='3' style='text-align:center; padding:20px; color:#999;'>履歴なし</td></tr>";
+            fil.forEach(x => {
+                let dStr = "-";
+                if (x.metadata?.blockTimestamp) {
+                    const d = new Date(x.metadata.blockTimestamp);
+                    dStr = `${d.getFullYear()}/${(d.getMonth()+1).toString().padStart(2,'0')}/${d.getDate().toString().padStart(2,'0')} ${d.getHours().toString().padStart(2,'0')}:${d.getMinutes().toString().padStart(2,'0')}`;
                 }
-                hBody.innerHTML += `
-                    <tr style="border-bottom: 1px solid #FFE0C0;">
-                        <td style="padding: 10px; font-size: 11px;">
-                            <span style="color:#999;">From:</span> ${tx.from.slice(0,6)}...<br>
-                            <span style="color:#999;">To:</span> ${tx.to.slice(0,6)}...
-                        </td>
-                        <td style="padding: 10px; text-align: center; color: #666; font-size: 11px; white-space: nowrap;">
-                            ${dateStr}
-                        </td>
-                        <td style="padding: 10px; text-align: center;">
-                            <a href="https://polygonscan.com/tx/${tx.hash}" target="_blank" style="text-decoration:none;">📄</a>
-                        </td>
-                    </tr>`;
+                hBody.innerHTML += `<tr style="border-bottom:1px solid #FFE0C0;"><td style="padding:10px; font-size:11px;"><span style="color:#999;">From:</span> ${x.from.slice(0,6)}...<br><span style="color:#999;">To:</span> ${x.to.slice(0,6)}...</td><td style="padding:10px; text-align:center; color:#666; font-size:11px;">${dStr}</td><td style="padding:10px; text-align:center;"><a href="https://polygonscan.com/tx/${x.hash}" target="_blank" style="text-decoration:none;">📄</a></td></tr>`;
             });
-        }
+        });
 
     } catch (e) {
-        console.error("Error:", e);
+        console.error(e);
         btn.disabled = false;
         btn.innerText = "表示する";
     }
 };
-
 </script>
 </body>
 </html>
