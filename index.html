@@ -92,29 +92,20 @@ const API_KEY = "xsfAkUztgC2QOCiy0ElXe";
 const CONTRACT = "0x6C621364993E5CD4C6468930d287ba76Ef64F366";
 
 document.getElementById('fetchBtn').onclick = async function() {
-    document.getElementById('fetchBtn').onclick = async function() {
-    let tid = document.getElementById('tokenId').value;
+    // 💡 入力値を取得して数字に変換
+    const inputVal = document.getElementById('tokenId').value;
+    const tid = parseInt(inputVal);
+    
     const btn = this;
     const resultDiv = document.getElementById('result');
     const hBody = document.getElementById('hBody');
     const mediaContainer = document.getElementById('mediaContainer');
     
-    // 💡 追加：IDの範囲チェック
-    const idNum = parseInt(tid);
-    if (!tid || idNum < 1 || idNum > 2000) {
+    // 💡 1〜2000の範囲外ならアラートを出して終了
+    if (!inputVal || tid < 1 || tid > 2000) {
         alert("トークンIDは 1 から 2000 の間で入力してください。");
         return;
     }
-
-    btn.disabled = true;
-    // ...（以下、これまでのコードが続く）
-    const tid = document.getElementById('tokenId').value;
-    const btn = this;
-    const resultDiv = document.getElementById('result');
-    const hBody = document.getElementById('hBody');
-    const mediaContainer = document.getElementById('mediaContainer');
-    
-    if (!tid) return;
 
     btn.disabled = true;
     btn.innerText = "取得中...";
@@ -122,50 +113,44 @@ document.getElementById('fetchBtn').onclick = async function() {
     hBody.innerHTML = "<tr><td colspan='3' style='text-align:center; padding:10px;'>履歴をスキャン中...</td></tr>";
 
     try {
+        // 1. メタデータ取得
         const nftUrl = `https://polygon-mainnet.g.alchemy.com/nft/v3/${API_KEY}/getNFTMetadata?contractAddress=${CONTRACT}&tokenId=${tid}&refreshCache=true`;
         const nftRes = await fetch(nftUrl);
         const data = await nftRes.json();
 
+        // 2. メディア表示 (Arweave/IPFS/動画対応)
         mediaContainer.innerHTML = ""; 
         const meta = data.raw?.metadata || {};
-        
-        // --- 💡 修正ポイント：ArweaveとIPFSの両方に対応 ---
         const formatUrl = (u) => {
             if (!u) return "";
             if (u.startsWith("ipfs://")) return u.replace("ipfs://", "https://ipfs.io/ipfs/").replace("ipfs/ipfs/", "ipfs/");
-            // Arweaveリンクはそのままでも通りますが、もし ar:// 形式なら変換
             if (u.startsWith("ar://")) return u.replace("ar://", "https://arweave.net/");
             return u;
         };
 
         const fImg = formatUrl(meta.image || meta.Image || data.image?.rawUrl || "");
         const fAnim = formatUrl(meta.animation_url || "");
-
-        // OpenSeaのキャッシュ画像をバックアップ用に生成
         const osCache = `https://api.opensea.io/api/v1/asset/${CONTRACT}/${tid}/image?w=600`;
 
-        // 💡 判定：ArweaveのURLやanimation_url、または拡張子がmp4なら動画
+        // 判定：animation_urlがある、またはArweaveリンク、または拡張子が動画ならビデオ
         const isVid = fAnim !== "" || fImg.includes("arweave.net") || fImg.toLowerCase().endsWith(".mp4");
 
         if (isVid) {
-            const videoSrc = fAnim || fImg;
             mediaContainer.innerHTML = `
-                <video src="${videoSrc}" autoplay loop muted playsinline controls 
+                <video src="${fAnim || fImg}" autoplay loop muted playsinline controls 
                        style="width: 100%; height: 100%; object-fit: cover; border-radius: 12px;"
                        onerror="this.outerHTML='<img src=\'${osCache}\' style=\'width:100%;height:100%;object-fit:cover;border-radius:12px;\'>'">
                 </video>`;
         } else {
-            mediaContainer.innerHTML = `
-                <img src="${fImg}" style="width: 100%; height: 100%; object-fit: cover; border-radius: 12px;" 
-                     onerror="this.src='${osCache}'">`;
+            mediaContainer.innerHTML = `<img src="${fImg}" style="width: 100%; height: 100%; object-fit: cover; border-radius: 12px;" onerror="this.src='${osCache}'">`;
         }
 
-        // --- 基本情報の反映 ---
+        // 3. 基本情報反映
         document.getElementById('nftLink').href = `https://opensea.io/assets/matic/${CONTRACT}/${tid}`;
         document.getElementById('nftTitle').innerText = data.name || `CryptoGoros #${tid}`;
         document.getElementById('nftDescription').innerText = data.description || meta.description || "説明なし";
 
-        // 所有者情報 (非同期)
+        // 4. 所有者とTraits (並列実行)
         fetch(`https://polygon-mainnet.g.alchemy.com/nft/v3/${API_KEY}/getOwnersForNFT?contractAddress=${CONTRACT}&tokenId=${tid}`)
             .then(r => r.json()).then(o => {
                 const own = o.owners?.[0];
@@ -175,7 +160,6 @@ document.getElementById('fetchBtn').onclick = async function() {
                 }
             });
 
-        // Traits表示
         const traitsContainer = document.getElementById('nftTraits');
         traitsContainer.innerHTML = ""; 
         const attrs = meta.attributes || data.attributes;
@@ -186,11 +170,12 @@ document.getElementById('fetchBtn').onclick = async function() {
             });
         }
 
+        // ✨ メイン表示をすぐに出す
         resultDiv.style.display = 'block';
         btn.disabled = false;
         btn.innerText = "表示する";
 
-        // 履歴取得 (バックグラウンド)
+        // 5. 履歴取得 (バックグラウンド)
         const histUrl = `https://polygon-mainnet.g.alchemy.com/v2/${API_KEY}`;
         let allT = [];
         let pKey = null;
@@ -204,7 +189,7 @@ document.getElementById('fetchBtn').onclick = async function() {
             }
         };
         getH().then(() => {
-            const fil = allT.filter(x => x.tokenId && parseInt(x.tokenId, 16) === parseInt(tid)).reverse();
+            const fil = allT.filter(x => x.tokenId && parseInt(x.tokenId, 16) === tid).reverse();
             hBody.innerHTML = fil.length ? "" : "<tr><td colspan='3' style='text-align:center; padding:20px; color:#999;'>履歴なし</td></tr>";
             fil.forEach(x => {
                 let dStr = "-";
