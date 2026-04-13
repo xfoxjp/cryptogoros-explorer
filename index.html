@@ -21,12 +21,18 @@
         .full-link { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 10; cursor: pointer; }
         .partial-link { position: absolute; top: 0; left: 0; width: 100%; height: 85%; z-index: 10; cursor: pointer; }
         .info-label { font-size: 11px; color: #CC5500; font-weight: bold; margin-bottom: 5px; text-transform: uppercase; }
-        .info-value { font-size: 15px; margin-bottom: 15px; word-break: break-all; }
+        .info-value { font-size: 15px; margin-bottom: 15px; word-break: break-all; min-height: 24px; }
         #nftTraits { display: flex; flex-wrap: wrap; gap: 8px; }
         .trait-card { background:#FFF5EE; border:1px solid #FFE0C0; border-radius:8px; padding:8px; text-align:center; flex:1 1 calc(33% - 8px); text-decoration:none; color:inherit; font-size:11px; }
         table { width: 100%; font-size: 12px; border-collapse: collapse; margin-top: 10px; }
         tr { border-bottom: 1px solid #eee; }
         td { padding: 10px 0; }
+        
+        /* オーナーリンクのスタイル */
+        #nftOwnerLink { color:#FF6600; font-weight:bold; text-decoration: none; }
+        #nftOwnerLink.active { text-decoration: underline; pointer-events: auto; opacity: 1; }
+        #nftOwnerLink.loading { pointer-events: none; opacity: 0.6; text-decoration: none; }
+        .staking-tag { color: #FF6600; font-size: 14px; font-weight: bold; }
     </style>
 </head>
 <body>
@@ -45,7 +51,10 @@
         <div class="info-label">Name</div>
         <div id="nftTitle" style="font-weight:bold; font-size:18px; margin-bottom:15px;"></div>
         <div class="info-label">Owner</div>
-        <div class="info-value"><a id="nftOwnerLink" href="#" target="_blank" style="color:#FF6600; font-weight:bold; text-decoration:none;"></a></div>
+        <div class="info-value">
+            <a id="nftOwnerLink" href="javascript:void(0)" target="_blank" class="loading"></a>
+            <span id="stakingStatus" class="staking-tag"></span>
+        </div>
         <div class="info-label">Traits</div>
         <div id="nftTraits"></div>
         <div class="info-label" style="margin-top:20px;">History</div>
@@ -56,8 +65,9 @@
 <script>
 const API_KEY = "xsfAkUztgC2QOCiy0ElXe"; 
 const CONTRACT = "0x6C621364993E5CD4C6468930d287ba76Ef64F366";
+const STAKING_ADDR = "0xa0333635ba418ceb9fcc4ac3f2f39aa492f4d0f7";
 let currentRequestId = 0;
-const VIDEO_IDS = [1660, 1640, 1635, 1626, 1620, 1646];
+const VIDEO_IDS = [1660, 1640, 1635, 1626, 1620, 1646, 1079, 1374];
 
 window.onload = function() {
     const fetchBtn = document.getElementById('fetchBtn');
@@ -77,11 +87,19 @@ window.onload = function() {
         const resultDiv = document.getElementById('result');
         const media = document.getElementById('mediaContainer');
         const hBody = document.getElementById('hBody');
+        const stakingTag = document.getElementById('stakingStatus');
+        const ownerLink = document.getElementById('nftOwnerLink');
 
         fetchBtn.disabled = true;
         fetchBtn.innerText = "読込中...";
         resultDiv.style.display = 'none';
         media.innerHTML = "";
+        
+        stakingTag.innerText = "";
+        ownerLink.innerText = "";
+        ownerLink.href = "javascript:void(0)";
+        ownerLink.className = "loading";
+        
         hBody.innerHTML = "<tr><td>データを同期中...</td></tr>";
 
         try {
@@ -94,19 +112,23 @@ window.onload = function() {
             const meta = data.raw?.metadata || {};
             const osLink = `https://opensea.io/assets/matic/${CONTRACT}/${tid}`;
             
-            // 1. まずは通常のルールでURLを決める
-// --- 判定ロジック部分を以下に差し替え ---
             let osImg = `https://api.opensea.io/api/v1/asset/${CONTRACT}/${tid}/image?w=600`;
             let fMedia = (meta.animation_url || meta.image || "").replace("ipfs://", "https://ipfs.io/ipfs/").replace("ar://", "https://arweave.net/");
 
-            if (tid === 1625) {
-                osImg = "https://arweave.net/MSQ8bKLDZtgGxMIq4HoouWzYcduSaVJrdQruWHuO8Lw";
-                fMedia = osImg;
-            } else if (tid === 1731) {
-                // ここを提示されたURLに固定
-                osImg = "https://i2c.seadn.io/polygon/0x6c621364993e5cd4c6468930d287ba76ef64f366/a7fdbee22be8fbdda1605626124c19/92a7fdbee22be8fbdda1605626124c19.png?w=1000";
-                fMedia = osImg;
-            }
+            // --- 個別URL対応セクション ---
+            if (tid === 1625) { osImg = "https://arweave.net/MSQ8bKLDZtgGxMIq4HoouWzYcduSaVJrdQruWHuO8Lw"; fMedia = osImg; }
+            else if (tid === 1731) { osImg = "https://i2c.seadn.io/polygon/0x6c621364993e5cd4c6468930d287ba76ef64f366/a7fdbee22be8fbdda1605626124c19/92a7fdbee22be8fbdda1605626124c19.png?w=1000"; fMedia = osImg; }
+            else if (tid === 1079) { fMedia = "https://ipfs.io/ipfs/QmUAU6U8iL1zBWYs24jdTBsxjGuzFdt8X4qBSwuDynLEzQ"; osImg = fMedia; }
+            else if (tid === 1374) { fMedia = "https://arweave.net/oB86Of8T6IoWBPsKmRkxoxWPIO3oIv8QX0nLKmXuQ44"; osImg = fMedia; }
+            else if (tid === 1699) { osImg = "https://arweave.net/RM80fZPU8VJBpj0Bd5SMxuFgaHoLODf8yhCB-Z9WY2s"; fMedia = osImg; }
+            else if (tid === 1705) { osImg = "https://arweave.net/p5g88z6KwKVnjS7QefCGbs6myXOPwV7Mq8dtc3UEgpU"; fMedia = osImg; }
+            // 静止画ハッシュ対応
+            else if (tid === 1344) { osImg = "https://raw2.seadn.io/polygon/0x6c621364993e5cd4c6468930d287ba76ef64f366/5befc1edcc3da1dabaa1cd717c40ae/765befc1edcc3da1dabaa1cd717c40ae.gif"; fMedia = osImg; }
+            else if (tid === 1413) { osImg = "https://raw2.seadn.io/polygon/0x6c621364993e5cd4c6468930d287ba76ef64f366/4fd73db65a27b898095da0158d1d4e/144fd73db65a27b898095da0158d1d4e.gif"; fMedia = osImg; }
+            else if (tid === 1439) { osImg = "https://raw2.seadn.io/polygon/0x6c621364993e5cd4c6468930d287ba76ef64f366/43026c5bd19d24532422c0913fb490/2143026c5bd19d24532422c0913fb490.png"; fMedia = osImg; }
+            else if (tid === 1446) { osImg = "https://raw2.seadn.io/polygon/0x6c621364993e5cd4c6468930d287ba76ef64f366/e616f5a259f72bf6a37589e6b6942e/c1e616f5a259f72bf6a37589e6b6942e.png"; fMedia = osImg; }
+            else if (tid === 1469) { osImg = "https://raw2.seadn.io/polygon/0x6c621364993e5cd4c6468930d287ba76ef64f366/6041755764a414b23d38a22e4ace76/186041755764a414b23d38a22e4ace76.png"; fMedia = osImg; }
+            else if (tid === 1473) { osImg = "https://raw2.seadn.io/polygon/0x6c621364993e5cd4c6468930d287ba76ef64f366/188fe9b85250258fdf72277f09e286/e4188fe9b85250258fdf72277f09e286.png"; fMedia = osImg; }
 
             const wrapper = document.createElement('div');
             wrapper.className = "media-wrapper";
@@ -119,40 +141,32 @@ window.onload = function() {
                 wrapper.innerHTML = `<video src="${fMedia}" autoplay loop muted playsinline controls style="width:100%;height:100%;object-fit:cover;border-radius:15px;"></video>`;
             } else {
                 linkA.className = "full-link";
-                // 💡 修正ポイント: referrerPolicy="no-referrer" を追加し、onerrorの無限ループを防ぐ
-                wrapper.innerHTML = `<img src="${osImg}" 
-                    referrerPolicy="no-referrer" 
-                    style="width:100%;height:100%;object-fit:cover;border-radius:15px;" 
-                    onerror="if(this.src != '${fMedia}') this.src='${fMedia}';">`;
+                wrapper.innerHTML = `<img src="${osImg}" referrerPolicy="no-referrer" style="width:100%;height:100%;object-fit:cover;border-radius:15px;" onerror="if(this.src != '${fMedia}') this.src='${fMedia}';">`;
             }
             
             wrapper.appendChild(linkA);
             media.appendChild(wrapper);
 
             document.getElementById('nftTitle').innerText = `CryptoGoro #${tid}`;
+            resultDiv.style.display = 'block';
 
+            // オーナー判定
             fetch(`https://polygon-mainnet.g.alchemy.com/nft/v3/${API_KEY}/getOwnersForNFT?contractAddress=${CONTRACT}&tokenId=${tid}`)
                 .then(r => r.json()).then(o => {
                     if (requestId === currentRequestId && o.owners) {
-                        const own = o.owners[0];
-                        const l = document.getElementById('nftOwnerLink');
-                        l.innerText = own.slice(0,6) + "..." + own.slice(-4);
-                        l.href = `https://opensea.io/${own}?search[query]=cryptogoros&collectionSlugs=cryptogoros`;
+                        const currentOwner = o.owners[0].toLowerCase();
+                        if (currentOwner === STAKING_ADDR.toLowerCase()) {
+                            ownerLink.innerText = "解析中...";
+                            stakingTag.innerText = " (Now Staking)";
+                        } else {
+                            ownerLink.innerText = currentOwner.slice(0,6) + "..." + currentOwner.slice(-4);
+                            ownerLink.href = `https://opensea.io/${currentOwner}?search[collections][0]=cryptogoros&collectionSlugs=cryptogoros`;
+                            ownerLink.className = "active";
+                        }
                     }
                 });
 
-            const traits = document.getElementById('nftTraits');
-            traits.innerHTML = "";
-            const attrs = meta.attributes || data.attributes;
-            if (attrs && Array.isArray(attrs)) {
-                attrs.forEach(a => {
-                    const url = "https://opensea.io/collection/cryptogoros?traits=" + encodeURIComponent(JSON.stringify([{traitType:a.trait_type, values:[a.value]}]));
-                    traits.innerHTML += `<a href="${url}" target="_blank" class="trait-card"><b>${a.trait_type}</b><br>${a.value}</a>`;
-                });
-            }
-
-            resultDiv.style.display = 'block';
-
+            // 履歴スキャン
             const histUrl = `https://polygon-mainnet.g.alchemy.com/v2/${API_KEY}`;
             let allT = [];
             let pKey = null;
@@ -168,9 +182,28 @@ window.onload = function() {
                         return txId === tid;
                     });
                     allT = allT.concat(matched);
-                    if (res.result.pageKey) { pKey = res.result.pageKey; await scan(); } else { render(allT); }
+                    if (res.result.pageKey) { pKey = res.result.pageKey; await scan(); } 
+                    else { 
+                        render(allT); 
+                        finalizeOwnerDisplay(allT);
+                    }
                 }
             }
+
+            function finalizeOwnerDisplay(list) {
+                if (requestId !== currentRequestId || list.length === 0) return;
+                list.sort((a, b) => b.metadata.blockTimestamp.localeCompare(a.metadata.blockTimestamp));
+                const latestTx = list[0];
+                
+                if (latestTx.to.toLowerCase() === STAKING_ADDR.toLowerCase()) {
+                    const trueOwner = latestTx.from;
+                    ownerLink.innerText = trueOwner.slice(0,6) + "..." + trueOwner.slice(-4);
+                    ownerLink.href = `https://opensea.io/${trueOwner}?search[collections][0]=cryptogoros&collectionSlugs=cryptogoros`;
+                    ownerLink.className = "active";
+                    stakingTag.innerText = " (Now Staking)";
+                }
+            }
+
             function render(list) {
                 if (requestId !== currentRequestId) return;
                 list.sort((a, b) => b.metadata.blockTimestamp.localeCompare(a.metadata.blockTimestamp));
@@ -182,6 +215,17 @@ window.onload = function() {
                 });
             }
             scan();
+
+            const traits = document.getElementById('nftTraits');
+            traits.innerHTML = "";
+            const attrs = meta.attributes || data.attributes;
+            if (attrs && Array.isArray(attrs)) {
+                attrs.forEach(a => {
+                    const url = "https://opensea.io/collection/cryptogoros?traits=" + encodeURIComponent(JSON.stringify([{traitType:a.trait_type, values:[a.value]}]));
+                    traits.innerHTML += `<a href="${url}" target="_blank" class="trait-card"><b>${a.trait_type}</b><br>${a.value}</a>`;
+                });
+            }
+
         } catch (e) { console.error(e); } finally { if (requestId === currentRequestId) { fetchBtn.disabled = false; fetchBtn.innerText = "表示"; } }
     }
 };
