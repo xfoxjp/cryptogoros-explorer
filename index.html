@@ -23,7 +23,7 @@
         .info-label { font-size: 11px; color: #CC5500; font-weight: bold; margin-bottom: 5px; text-transform: uppercase; }
         .info-value { font-size: 15px; margin-bottom: 15px; word-break: break-all; min-height: 24px; }
         #nftTraits { display: flex; flex-wrap: wrap; gap: 8px; }
-        .trait-card { background:#FFF5EE; border:1px solid #FFE0C0; border-radius:8px; padding:8px; text-align:center; flex:1 1 calc(33% - 8px); text-decoration:none; color:inherit; font-size:11px; }
+        .trait-card { background:#FFF5EE; border:1px solid #FFE0C0; border-radius:8px; padding:8px; text-align:center; flex:1 1 calc(33% - 8px); text-decoration:none; color:inherit; font-size:11px; box-sizing: border-box; }
         table { width: 100%; font-size: 12px; border-collapse: collapse; margin-top: 10px; }
         tr { border-bottom: 1px solid #eee; }
         td { padding: 10px 0; }
@@ -67,7 +67,7 @@ const API_KEY = "xsfAkUztgC2QOCiy0ElXe";
 const CONTRACT = "0x6C621364993E5CD4C6468930d287ba76Ef64F366";
 const STAKING_ADDR = "0xa0333635ba418ceb9fcc4ac3f2f39aa492f4d0f7";
 let currentRequestId = 0;
-const VIDEO_IDS = [757,1660, 1640, 1635, 1626, 1620, 1646, 1079, 1374, 1806 ,1845 ,1863];
+const VIDEO_IDS = [757, 1660, 1640, 1635, 1626, 1620, 1646, 1079, 1374, 1806, 1845, 1863];
 
 window.onload = function() {
     const fetchBtn = document.getElementById('fetchBtn');
@@ -103,7 +103,7 @@ window.onload = function() {
         hBody.innerHTML = "<tr><td>データを同期中...</td></tr>";
 
         try {
-// --- メタデータ取得部分 ---
+            // メタデータ取得 (Alchemy API)
             const nftUrl = `https://polygon-mainnet.g.alchemy.com/nft/v3/${API_KEY}/getNFTMetadata?contractAddress=${CONTRACT}&tokenId=${tid}`;
             const nftRes = await fetch(nftUrl);
             const data = await nftRes.json();
@@ -112,26 +112,47 @@ window.onload = function() {
 
             let meta = data.raw?.metadata || {};
 
-            // 【追加】Alchemy側でattributesが空の場合、tokenUriから直接JSONを取得する
-            if ((!meta.attributes && !data.attributes) && data.tokenUri) {
-                try {
-                    let directUri = data.tokenUri;
-                    if (directUri.startsWith("ipfs://")) directUri = directUri.replace("ipfs://", "https://ipfs.io/ipfs/");
-                    if (directUri.startsWith("ar://")) directUri = directUri.replace("ar://", "https://arweave.net/");
+            // tokenUri 文字列を安全に抽出（オブジェクトの場合にも対応）
+            let rawUri = "";
+            if (typeof data.tokenUri === 'string') {
+                rawUri = data.tokenUri;
+            } else if (data.tokenUri && typeof data.tokenUri === 'object') {
+                rawUri = data.tokenUri.gateway || data.tokenUri.raw || "";
+            }
 
-                    const directRes = await fetch(directUri);
-                    if (directRes.ok) {
-                        meta = await directRes.json();
+            // Alchemy側でattributesが取れていない場合、tokenUriから直接JSONを取得（CORS回避プロキシ付き）
+            const hasAttrs = (meta.attributes && meta.attributes.length > 0) || (data.attributes && data.attributes.length > 0);
+            if (!hasAttrs && rawUri) {
+                let targetUrl = rawUri
+                    .replace("ipfs://", "https://ipfs.io/ipfs/")
+                    .replace("ar://", "https://arweave.net/");
+
+                // 外部ドメインの場合はCORSプロキシを経由して直接取得
+                const fetchUrls = [
+                    targetUrl,
+                    `https://api.allorigins.win/raw?url=${encodeURIComponent(targetUrl)}`
+                ];
+
+                for (const u of fetchUrls) {
+                    try {
+                        const directRes = await fetch(u);
+                        if (directRes.ok) {
+                            const parsed = await directRes.json();
+                            if (parsed && typeof parsed === 'object') {
+                                meta = Object.assign({}, meta, parsed);
+                                break;
+                            }
+                        }
+                    } catch (e) {
+                        // 次のフォールバック先を試行
                     }
-                } catch (err) {
-                    console.warn("Direct metadata fetch failed:", err);
                 }
             }
 
             const osLink = `https://opensea.io/assets/matic/${CONTRACT}/${tid}`;
 
-            // 【改善】廃止されたOpenSea旧APIではなく、取得したメタデータのimageを最優先にする
-            let fMedia = (meta.image || meta.animation_url || data.image?.cachedUrl || data.image?.originalUrl || "")
+            // メディアURLの決定
+            let fMedia = (meta.image || meta.animation_url || data.image?.cachedUrl || data.image?.originalUrl || data.image?.pngUrl || "")
                 .replace("ipfs://", "https://ipfs.io/ipfs/")
                 .replace("ar://", "https://arweave.net/");
 
@@ -144,7 +165,6 @@ window.onload = function() {
             else if (tid === 1374) { fMedia = "https://arweave.net/oB86Of8T6IoWBPsKmRkxoxWPIO3oIv8QX0nLKmXuQ44"; osImg = fMedia; }
             else if (tid === 1699) { osImg = "https://arweave.net/RM80fZPU8VJBpj0Bd5SMxuFgaHoLODf8yhCB-Z9WY2s"; fMedia = osImg; }
             else if (tid === 1705) { osImg = "https://arweave.net/p5g88z6KwKVnjS7QefCGbs6myXOPwV7Mq8dtc3UEgpU"; fMedia = osImg; }
-            // 静止画ハッシュ対応
             else if (tid === 1344) { osImg = "https://raw2.seadn.io/polygon/0x6c621364993e5cd4c6468930d287ba76ef64f366/5befc1edcc3da1dabaa1cd717c40ae/765befc1edcc3da1dabaa1cd717c40ae.gif"; fMedia = osImg; }
             else if (tid === 1413) { osImg = "https://raw2.seadn.io/polygon/0x6c621364993e5cd4c6468930d287ba76ef64f366/4fd73db65a27b898095da0158d1d4e/144fd73db65a27b898095da0158d1d4e.gif"; fMedia = osImg; }
             else if (tid === 1439) { osImg = "https://raw2.seadn.io/polygon/0x6c621364993e5cd4c6468930d287ba76ef64f366/43026c5bd19d24532422c0913fb490/2143026c5bd19d24532422c0913fb490.png"; fMedia = osImg; }
@@ -171,9 +191,6 @@ window.onload = function() {
 
             document.getElementById('nftTitle').innerText = meta.name || `CryptoGoro #${tid}`;
             resultDiv.style.display = 'block';
-
-            
-            
 
             // オーナー判定
             fetch(`https://polygon-mainnet.g.alchemy.com/nft/v3/${API_KEY}/getOwnersForNFT?contractAddress=${CONTRACT}&tokenId=${tid}`)
@@ -240,18 +257,28 @@ window.onload = function() {
                 });
             }
             scan();
-             // --- Traits表示部分 ---
+
+            // Traits 表示部分
             const traits = document.getElementById('nftTraits');
             traits.innerHTML = "";
             const attrs = meta.attributes || data.raw?.metadata?.attributes || data.attributes;
-            if (attrs && Array.isArray(attrs)) {
+            if (attrs && Array.isArray(attrs) && attrs.length > 0) {
                 attrs.forEach(a => {
-                    const url = "https://opensea.io/collection/cryptogoros?traits=" + encodeURIComponent(JSON.stringify([{traitType:a.trait_type, values:[a.value]}]));
-                    traits.innerHTML += `<a href="${url}" target="_blank" class="trait-card"><b>${a.trait_type}</b><br>${a.value}</a>`;
+                    const type = a.trait_type || a.traitType || "Trait";
+                    const val = a.value !== undefined ? a.value : "-";
+                    const url = "https://opensea.io/collection/cryptogoros?traits=" + encodeURIComponent(JSON.stringify([{traitType: type, values: [val]}]));
+                    traits.innerHTML += `<a href="${url}" target="_blank" class="trait-card"><b>${type}</b><br>${val}</a>`;
                 });
             }
 
-        } catch (e) { console.error(e); } finally { if (requestId === currentRequestId) { fetchBtn.disabled = false; fetchBtn.innerText = "表示"; } }
+        } catch (e) { 
+            console.error("fetch error:", e); 
+        } finally { 
+            if (requestId === currentRequestId) { 
+                fetchBtn.disabled = false; 
+                fetchBtn.innerText = "表示"; 
+            } 
+        }
     }
 };
 </script>
