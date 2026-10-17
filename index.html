@@ -103,35 +103,35 @@ window.onload = function() {
         hBody.innerHTML = "<tr><td>データを同期中...</td></tr>";
 
         try {
+// --- メタデータ取得部分 ---
             const nftUrl = `https://polygon-mainnet.g.alchemy.com/nft/v3/${API_KEY}/getNFTMetadata?contractAddress=${CONTRACT}&tokenId=${tid}`;
             const nftRes = await fetch(nftUrl);
             const data = await nftRes.json();
 
             if (requestId !== currentRequestId) return;
 
-            // --- メタデータの取得（Alchemyで空の場合は tokenUri から直接取得） ---
             let meta = data.raw?.metadata || {};
-            
-            // Alchemy側でattributesやimageが空の場合、tokenUriから直接再取得を試みる
+
+            // 【追加】Alchemy側でattributesが空の場合、tokenUriから直接JSONを取得する
             if ((!meta.attributes && !data.attributes) && data.tokenUri) {
                 try {
                     let directUri = data.tokenUri;
                     if (directUri.startsWith("ipfs://")) directUri = directUri.replace("ipfs://", "https://ipfs.io/ipfs/");
                     if (directUri.startsWith("ar://")) directUri = directUri.replace("ar://", "https://arweave.net/");
-                    
+
                     const directRes = await fetch(directUri);
                     if (directRes.ok) {
                         meta = await directRes.json();
                     }
                 } catch (err) {
-                    console.warn("Direct tokenUri fetch failed:", err);
+                    console.warn("Direct metadata fetch failed:", err);
                 }
             }
 
             const osLink = `https://opensea.io/assets/matic/${CONTRACT}/${tid}`;
-            
-            // 廃止されたOpenSea旧APIではなく、取得したメタデータやAlchemyのキャッシュURLを直接使用
-            let fMedia = (meta.animation_url || meta.image || data.image?.cachedUrl || data.image?.originalUrl || "")
+
+            // 【改善】廃止されたOpenSea旧APIではなく、取得したメタデータのimageを最優先にする
+            let fMedia = (meta.image || meta.animation_url || data.image?.cachedUrl || data.image?.originalUrl || "")
                 .replace("ipfs://", "https://ipfs.io/ipfs/")
                 .replace("ar://", "https://arweave.net/");
 
@@ -163,7 +163,7 @@ window.onload = function() {
                 wrapper.innerHTML = `<video src="${fMedia}" autoplay loop muted playsinline controls style="width:100%;height:100%;object-fit:cover;border-radius:15px;"></video>`;
             } else {
                 linkA.className = "full-link";
-                wrapper.innerHTML = `<img src="${osImg}" referrerPolicy="no-referrer" style="width:100%;height:100%;object-fit:cover;border-radius:15px;">`;
+                wrapper.innerHTML = `<img src="${osImg}" referrerPolicy="no-referrer" style="width:100%;height:100%;object-fit:cover;border-radius:15px;" onerror="if(this.src != '${fMedia}') this.src='${fMedia}';">`;
             }
             
             wrapper.appendChild(linkA);
@@ -172,6 +172,7 @@ window.onload = function() {
             document.getElementById('nftTitle').innerText = meta.name || `CryptoGoro #${tid}`;
             resultDiv.style.display = 'block';
 
+            
             
 
             // オーナー判定
@@ -239,7 +240,7 @@ window.onload = function() {
                 });
             }
             scan();
-            // --- Traits表示部分 ---
+             // --- Traits表示部分 ---
             const traits = document.getElementById('nftTraits');
             traits.innerHTML = "";
             const attrs = meta.attributes || data.raw?.metadata?.attributes || data.attributes;
@@ -249,7 +250,6 @@ window.onload = function() {
                     traits.innerHTML += `<a href="${url}" target="_blank" class="trait-card"><b>${a.trait_type}</b><br>${a.value}</a>`;
                 });
             }
-
 
         } catch (e) { console.error(e); } finally { if (requestId === currentRequestId) { fetchBtn.disabled = false; fetchBtn.innerText = "表示"; } }
     }
