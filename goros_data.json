@@ -5296,6 +5296,24 @@
       }
     ]
   },
+  "504": {
+    "name": "CryptoGoro #Day504",
+    "image": "https://i2c.seadn.io/polygon/0x6c621364993e5cd4c6468930d287ba76ef64f366/7e7d48a4099d241ea200c527edfa66/b57e7d48a4099d241ea200c527edfa66.webp",
+    "attributes": [
+      {
+        "trait_type": "JOB",
+        "value": "Junkie"
+      },
+      {
+        "trait_type": "RACE",
+        "value": "Kyoko"
+      },
+      {
+        "trait_type": "T-SHIRT",
+        "value": "burned"
+      }
+    ]
+  },
   "505": {
     "name": "CryptoGoro #Day505",
     "image": "https://i2c.seadn.io/polygon/0x6c621364993e5cd4c6468930d287ba76ef64f366/165f2a75149fa01151cbb28526a8e2/ca165f2a75149fa01151cbb28526a8e2.png",
@@ -18033,6 +18051,34 @@
     "name": "CryptoGoro #Day1933",
     "image": "https://i2c.seadn.io/polygon/0x6c621364993e5cd4c6468930d287ba76ef64f366/8e6b5601465aaa6f6d0554c80eee48/7d8e6b5601465aaa6f6d0554c80eee48.png",
     "attributes": [
+      {
+        "trait_type": "BACKGROUND",
+        "value": "RED LAND"
+      }
+    ]
+  },
+  "1934": {
+    "name": "CryptoGoro #Day1934",
+    "image": "https://i2c.seadn.io/polygon/0x6c621364993e5cd4c6468930d287ba76ef64f366/60a307bf0633690d65909082997df9/f360a307bf0633690d65909082997df9.png",
+    "attributes": [
+      {
+        "trait_type": "HEADGEAR",
+        "value": "Fake Murakami"
+      },
+      {
+        "trait_type": "BACKGROUND",
+        "value": "RED LAND"
+      }
+    ]
+  },
+  "1935": {
+    "name": "CryptoGoro #Day1935",
+    "image": "https://i2c.seadn.io/polygon/0x6c621364993e5cd4c6468930d287ba76ef64f366/312e278f8dc755fc7e226dd88ba3e7/94312e278f8dc755fc7e226dd88ba3e7.gif",
+    "attributes": [
+      {
+        "trait_type": "RACE",
+        "value": "Cup"
+      },
       {
         "trait_type": "BACKGROUND",
         "value": "RED LAND"
