@@ -28,7 +28,6 @@
         tr { border-bottom: 1px solid #eee; }
         td { padding: 10px 0; }
         
-        /* オーナーリンクのスタイル */
         #nftOwnerLink { color:#FF6600; font-weight:bold; text-decoration: none; }
         #nftOwnerLink.active { text-decoration: underline; pointer-events: auto; opacity: 1; }
         #nftOwnerLink.loading { pointer-events: none; opacity: 0.6; text-decoration: none; }
@@ -102,46 +101,22 @@ window.onload = function() {
         hBody.innerHTML = "<tr><td>データを同期中...</td></tr>";
 
         try {
-            // Alchemy API から基本データを取得
+            // Alchemy API のみを利用して高速・確実に取得
             const nftUrl = `https://polygon-mainnet.g.alchemy.com/nft/v3/${API_KEY}/getNFTMetadata?contractAddress=${CONTRACT}&tokenId=${tid}`;
             const nftRes = await fetch(nftUrl);
             const data = await nftRes.json();
 
             if (requestId !== currentRequestId) return;
 
-            let meta = data.raw?.metadata || {};
-            let attrs = meta.attributes || data.raw?.metadata?.attributes || data.attributes;
-
-            // Alchemy側でTraitsが取れていない場合、OpenSeaのメタデータキャッシュから補完
-            if (!attrs || !Array.isArray(attrs) || attrs.length === 0) {
-                try {
-                    const osMetaUrl = `https://api.opensea.io/api/v2/chain/matic/contract/${CONTRACT}/nfts/${tid}`;
-                    const osRes = await fetch(osMetaUrl);
-                    if (osRes.ok) {
-                        const osData = await osRes.json();
-                        if (osData.nft) {
-                            if (osData.nft.traits) {
-                                attrs = osData.nft.traits.map(t => ({ trait_type: t.trait_type, value: t.value }));
-                            }
-                            if (!meta.image && osData.nft.image_url) {
-                                meta.image = osData.nft.image_url;
-                            }
-                            if (!meta.name && osData.nft.name) {
-                                meta.name = osData.nft.name;
-                            }
-                        }
-                    }
-                } catch (e) {
-                    console.warn("OpenSea metadata fallback failed:", e);
-                }
-            }
-
+            const meta = data.raw?.metadata || {};
             const osLink = `https://opensea.io/assets/matic/${CONTRACT}/${tid}`;
 
-            // メディアURLの決定
-            let fMedia = (meta.image || meta.animation_url || data.image?.cachedUrl || data.image?.originalUrl || data.image?.pngUrl || "")
-                .replace("ipfs://", "https://ipfs.io/ipfs/")
-                .replace("ar://", "https://arweave.net/");
+            // 画像URLの解決（Alchemy キャッシュ → メタデータ画像 → IPFS/Arweave の順でフォールバック）
+            let fMedia = data.image?.cachedUrl 
+                || data.image?.originalUrl 
+                || (meta.image || meta.animation_url || "")
+                    .replace("ipfs://", "https://ipfs.io/ipfs/")
+                    .replace("ar://", "https://arweave.net/");
 
             let osImg = fMedia;
 
@@ -152,33 +127,9 @@ window.onload = function() {
             else if (tid === 1374) { fMedia = "https://arweave.net/oB86Of8T6IoWBPsKmRkxoxWPIO3oIv8QX0nLKmXuQ44"; osImg = fMedia; }
             else if (tid === 1699) { osImg = "https://arweave.net/RM80fZPU8VJBpj0Bd5SMxuFgaHoLODf8yhCB-Z9WY2s"; fMedia = osImg; }
             else if (tid === 1705) { osImg = "https://arweave.net/p5g88z6KwKVnjS7QefCGbs6myXOPwV7Mq8dtc3UEgpU"; fMedia = osImg; }
+            else if (tid === 1924) { osImg = "https://arweave.net/YIf3sX7Rx0S59TnznhIi9aaOW9UhvytIyUSqYiIMtTA"; fMedia = osImg; }
             else if (tid === 1344) { osImg = "https://raw2.seadn.io/polygon/0x6c621364993e5cd4c6468930d287ba76ef64f366/5befc1edcc3da1dabaa1cd717c40ae/765befc1edcc3da1dabaa1cd717c40ae.gif"; fMedia = osImg; }
             else if (tid === 1413) { osImg = "https://raw2.seadn.io/polygon/0x6c621364993e5cd4c6468930d287ba76ef64f366/4fd73db65a27b898095da0158d1d4e/144fd73db65a27b898095da0158d1d4e.gif"; fMedia = osImg; }
             else if (tid === 1439) { osImg = "https://raw2.seadn.io/polygon/0x6c621364993e5cd4c6468930d287ba76ef64f366/43026c5bd19d24532422c0913fb490/2143026c5bd19d24532422c0913fb490.png"; fMedia = osImg; }
             else if (tid === 1446) { osImg = "https://raw2.seadn.io/polygon/0x6c621364993e5cd4c6468930d287ba76ef64f366/e616f5a259f72bf6a37589e6b6942e/c1e616f5a259f72bf6a37589e6b6942e.png"; fMedia = osImg; }
-            else if (tid === 1469) { osImg = "https://raw2.seadn.io/polygon/0x6c621364993e5cd4c6468930d287ba76ef64f366/6041755764a414b23d38a22e4ace76/186041755764a414b23d38a22e4ace76.png"; fMedia = osImg; }
-            else if (tid === 1473) { osImg = "https://raw2.seadn.io/polygon/0x6c621364993e5cd4c6468930d287ba76ef64f366/188fe9b85250258fdf72277f09e286/e4188fe9b85250258fdf72277f09e286.png"; fMedia = osImg; }
-
-            const wrapper = document.createElement('div');
-            wrapper.className = "media-wrapper";
-            const linkA = document.createElement('a');
-            linkA.href = osLink;
-            linkA.target = "_blank";
-
-            if (VIDEO_IDS.includes(tid)) {
-                linkA.className = "partial-link";
-                wrapper.innerHTML = `<video src="${fMedia}" autoplay loop muted playsinline controls style="width:100%;height:100%;object-fit:cover;border-radius:15px;"></video>`;
-            } else {
-                linkA.className = "full-link";
-                wrapper.innerHTML = `<img src="${osImg}" referrerPolicy="no-referrer" style="width:100%;height:100%;object-fit:cover;border-radius:15px;" onerror="if(this.src != '${fMedia}') this.src='${fMedia}';">`;
-            }
-            
-            wrapper.appendChild(linkA);
-            media.appendChild(wrapper);
-
-            document.getElementById('nftTitle').innerText = meta.name || `CryptoGoro #${tid}`;
-            resultDiv.style.display = 'block';
-
-            // オーナー判定
-            fetch(`https://polygon-mainnet.g.alchemy.com/nft/v3/${API_KEY}/getOwnersForNFT?contractAddress=${CONTRACT}&tokenId=${tid}`)
-                .then(r => r.json()).then(o =>
+            else if (tid === 1469) { osImg = "
