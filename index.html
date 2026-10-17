@@ -69,6 +69,24 @@ const STAKING_ADDR = "0xa0333635ba418ceb9fcc4ac3f2f39aa492f4d0f7";
 let currentRequestId = 0;
 const VIDEO_IDS = [757, 1660, 1640, 1635, 1626, 1620, 1646, 1079, 1374, 1806, 1845, 1863];
 
+// ローカルJSON用データベース
+let gorosDatabase = {};
+
+// ページ読み込み時に goros_data.json を一括ロード
+fetch('./goros_data.json')
+    .then(res => res.json())
+    .then(data => {
+        gorosDatabase = data;
+        console.log("goros_data.json ロード完了:", Object.keys(data).length, "件");
+        // 初期表示 (Day 1)
+        executeFetch(1);
+    })
+    .catch(err => {
+        console.error("goros_data.json の読み込みに失敗しました:", err);
+        // JSONが万が一見つからない場合もフォールバックで動作
+        executeFetch(1);
+    });
+
 window.onload = function() {
     const fetchBtn = document.getElementById('fetchBtn');
     const input = document.getElementById('tokenId');
@@ -80,130 +98,110 @@ window.onload = function() {
     document.getElementById('prevBtn').onclick = () => trigger(-1);
     document.getElementById('nextBtn').onclick = () => trigger(1);
     fetchBtn.onclick = () => executeFetch(parseInt(input.value));
+};
 
-    async function executeFetch(tid) {
-        if (isNaN(tid) || tid < 1 || tid > 2000) return;
-        const requestId = ++currentRequestId;
-        const resultDiv = document.getElementById('result');
-        const media = document.getElementById('mediaContainer');
-        const hBody = document.getElementById('hBody');
-        const stakingTag = document.getElementById('stakingStatus');
-        const ownerLink = document.getElementById('nftOwnerLink');
+async function executeFetch(tid) {
+    if (isNaN(tid) || tid < 1 || tid > 2000) return;
+    const requestId = ++currentRequestId;
+    const fetchBtn = document.getElementById('fetchBtn');
+    const resultDiv = document.getElementById('result');
+    const media = document.getElementById('mediaContainer');
+    const hBody = document.getElementById('hBody');
+    const stakingTag = document.getElementById('stakingStatus');
+    const ownerLink = document.getElementById('nftOwnerLink');
+    const traits = document.getElementById('nftTraits');
 
-        fetchBtn.disabled = true;
-        fetchBtn.innerText = "読込中...";
-        resultDiv.style.display = 'none';
-        media.innerHTML = "";
+    fetchBtn.disabled = true;
+    fetchBtn.innerText = "読込中...";
+    media.innerHTML = "";
+    stakingTag.innerText = "";
+    ownerLink.innerText = "照会中...";
+    ownerLink.href = "javascript:void(0)";
+    ownerLink.className = "loading";
+    hBody.innerHTML = "<tr><td>データを同期中...</td></tr>";
+
+    try {
+        // --- 1. メタデータ（画像・名前・Traits）をローカルJSONから即座に展開 ---
+        const localItem = gorosDatabase[tid] || gorosDatabase[String(tid)];
         
-        stakingTag.innerText = "";
-        ownerLink.innerText = "";
-        ownerLink.href = "javascript:void(0)";
-        ownerLink.className = "loading";
-        hBody.innerHTML = "<tr><td>データを同期中...</td></tr>";
+        let fMedia = localItem?.image || "";
+        let osImg = fMedia;
+        let nftName = localItem?.name || `CryptoGoro #${tid}`;
+        let attrs = localItem?.attributes || [];
 
-        try {
-            // Alchemy API から基本データを取得
-            const nftUrl = `https://polygon-mainnet.g.alchemy.com/nft/v3/${API_KEY}/getNFTMetadata?contractAddress=${CONTRACT}&tokenId=${tid}`;
-            const nftRes = await fetch(nftUrl);
-            const data = await nftRes.json();
+        // 個別URL対応（念のためのハードコード安全網）
+        if (tid === 1625) { osImg = "https://arweave.net/MSQ8bKLDZtgGxMIq4HoouWzYcduSaVJrdQruWHuO8Lw"; fMedia = osImg; }
+        else if (tid === 1731) { osImg = "https://i2c.seadn.io/polygon/0x6c621364993e5cd4c6468930d287ba76ef64f366/a7fdbee22be8fbdda1605626124c19/92a7fdbee22be8fbdda1605626124c19.png?w=1000"; fMedia = osImg; }
+        else if (tid === 1079) { fMedia = "https://ipfs.io/ipfs/QmUAU6U8iL1zBWYs24jdTBsxjGuzFdt8X4qBSwuDynLEzQ"; osImg = fMedia; }
+        else if (tid === 1374) { fMedia = "https://arweave.net/oB86Of8T6IoWBPsKmRkxoxWPIO3oIv8QX0nLKmXuQ44"; osImg = fMedia; }
+        else if (tid === 1699) { osImg = "https://arweave.net/RM80fZPU8VJBpj0Bd5SMxuFgaHoLODf8yhCB-Z9WY2s"; fMedia = osImg; }
+        else if (tid === 1705) { osImg = "https://arweave.net/p5g88z6KwKVnjS7QefCGbs6myXOPwV7Mq8dtc3UEgpU"; fMedia = osImg; }
 
-            if (requestId !== currentRequestId) return;
+        const osLink = `https://opensea.io/assets/matic/${CONTRACT}/${tid}`;
 
-            let meta = data.raw?.metadata || {};
-            let attrs = meta.attributes || data.raw?.metadata?.attributes || data.attributes;
+        // メディア描画
+        const wrapper = document.createElement('div');
+        wrapper.className = "media-wrapper";
+        const linkA = document.createElement('a');
+        linkA.href = osLink;
+        linkA.target = "_blank";
 
-            // Alchemy側でTraitsが取れていない場合、OpenSeaのメタデータキャッシュから補完
-            if (!attrs || !Array.isArray(attrs) || attrs.length === 0) {
-                try {
-                    const osMetaUrl = `https://api.opensea.io/api/v2/chain/matic/contract/${CONTRACT}/nfts/${tid}`;
-                    const osRes = await fetch(osMetaUrl);
-                    if (osRes.ok) {
-                        const osData = await osRes.json();
-                        if (osData.nft) {
-                            if (osData.nft.traits) {
-                                attrs = osData.nft.traits.map(t => ({ trait_type: t.trait_type, value: t.value }));
-                            }
-                            if (!meta.image && osData.nft.image_url) {
-                                meta.image = osData.nft.image_url;
-                            }
-                            if (!meta.name && osData.nft.name) {
-                                meta.name = osData.nft.name;
-                            }
-                        }
+        if (VIDEO_IDS.includes(tid)) {
+            linkA.className = "partial-link";
+            wrapper.innerHTML = `<video src="${fMedia}" autoplay loop muted playsinline controls style="width:100%;height:100%;object-fit:cover;border-radius:15px;"></video>`;
+        } else {
+            linkA.className = "full-link";
+            wrapper.innerHTML = `<img src="${osImg}" referrerPolicy="no-referrer" style="width:100%;height:100%;object-fit:cover;border-radius:15px;">`;
+        }
+        
+        wrapper.appendChild(linkA);
+        media.appendChild(wrapper);
+
+        // 名前表示
+        document.getElementById('nftTitle').innerText = nftName;
+
+        // Traits表示
+        traits.innerHTML = "";
+        if (attrs && Array.isArray(attrs) && attrs.length > 0) {
+            attrs.forEach(a => {
+                const type = a.trait_type || "Trait";
+                const val = a.value !== undefined ? a.value : "-";
+                const url = "https://opensea.io/collection/cryptogoros?traits=" + encodeURIComponent(JSON.stringify([{traitType: type, values: [val]}]));
+                traits.innerHTML += `<a href="${url}" target="_blank" class="trait-card"><b>${type}</b><br>${val}</a>`;
+            });
+        } else {
+            traits.innerHTML = `<span style="color:#999; font-size:12px;">属性情報なし</span>`;
+        }
+
+        // メタデータ部分は即時表示
+        resultDiv.style.display = 'block';
+
+        // --- 2. オーナー判定 (Alchemy API) ---
+        fetch(`https://polygon-mainnet.g.alchemy.com/nft/v3/${API_KEY}/getOwnersForNFT?contractAddress=${CONTRACT}&tokenId=${tid}`)
+            .then(r => r.json()).then(o => {
+                if (requestId === currentRequestId && o.owners && o.owners.length > 0) {
+                    const currentOwner = o.owners[0].toLowerCase();
+                    if (currentOwner === STAKING_ADDR.toLowerCase()) {
+                        ownerLink.innerText = "解析中...";
+                        stakingTag.innerText = " (Now Staking)";
+                    } else {
+                        ownerLink.innerText = currentOwner.slice(0,6) + "..." + currentOwner.slice(-4);
+                        ownerLink.href = `https://opensea.io/${currentOwner}?search[collections][0]=cryptogoros&collectionSlugs=cryptogoros`;
+                        ownerLink.className = "active";
                     }
-                } catch (e) {
-                    console.warn("OpenSea metadata fallback failed:", e);
                 }
-            }
+            }).catch(() => {});
 
-            const osLink = `https://opensea.io/assets/matic/${CONTRACT}/${tid}`;
+        // --- 3. 履歴スキャン & ステーキング元オーナー解析 (Alchemy API) ---
+        const histUrl = `https://polygon-mainnet.g.alchemy.com/v2/${API_KEY}`;
+        let allT = [];
+        let pKey = null;
 
-            // メディアURLの決定
-            let fMedia = (meta.image || meta.animation_url || data.image?.cachedUrl || data.image?.originalUrl || data.image?.pngUrl || "")
-                .replace("ipfs://", "https://ipfs.io/ipfs/")
-                .replace("ar://", "https://arweave.net/");
-
-            let osImg = fMedia;
-
-            // --- 個別URL対応セクション ---
-            if (tid === 1625) { osImg = "https://arweave.net/MSQ8bKLDZtgGxMIq4HoouWzYcduSaVJrdQruWHuO8Lw"; fMedia = osImg; }
-            else if (tid === 1731) { osImg = "https://i2c.seadn.io/polygon/0x6c621364993e5cd4c6468930d287ba76ef64f366/a7fdbee22be8fbdda1605626124c19/92a7fdbee22be8fbdda1605626124c19.png?w=1000"; fMedia = osImg; }
-            else if (tid === 1079) { fMedia = "https://ipfs.io/ipfs/QmUAU6U8iL1zBWYs24jdTBsxjGuzFdt8X4qBSwuDynLEzQ"; osImg = fMedia; }
-            else if (tid === 1374) { fMedia = "https://arweave.net/oB86Of8T6IoWBPsKmRkxoxWPIO3oIv8QX0nLKmXuQ44"; osImg = fMedia; }
-            else if (tid === 1699) { osImg = "https://arweave.net/RM80fZPU8VJBpj0Bd5SMxuFgaHoLODf8yhCB-Z9WY2s"; fMedia = osImg; }
-            else if (tid === 1705) { osImg = "https://arweave.net/p5g88z6KwKVnjS7QefCGbs6myXOPwV7Mq8dtc3UEgpU"; fMedia = osImg; }
-            else if (tid === 1344) { osImg = "https://raw2.seadn.io/polygon/0x6c621364993e5cd4c6468930d287ba76ef64f366/5befc1edcc3da1dabaa1cd717c40ae/765befc1edcc3da1dabaa1cd717c40ae.gif"; fMedia = osImg; }
-            else if (tid === 1413) { osImg = "https://raw2.seadn.io/polygon/0x6c621364993e5cd4c6468930d287ba76ef64f366/4fd73db65a27b898095da0158d1d4e/144fd73db65a27b898095da0158d1d4e.gif"; fMedia = osImg; }
-            else if (tid === 1439) { osImg = "https://raw2.seadn.io/polygon/0x6c621364993e5cd4c6468930d287ba76ef64f366/43026c5bd19d24532422c0913fb490/2143026c5bd19d24532422c0913fb490.png"; fMedia = osImg; }
-            else if (tid === 1446) { osImg = "https://raw2.seadn.io/polygon/0x6c621364993e5cd4c6468930d287ba76ef64f366/e616f5a259f72bf6a37589e6b6942e/c1e616f5a259f72bf6a37589e6b6942e.png"; fMedia = osImg; }
-            else if (tid === 1469) { osImg = "https://raw2.seadn.io/polygon/0x6c621364993e5cd4c6468930d287ba76ef64f366/6041755764a414b23d38a22e4ace76/186041755764a414b23d38a22e4ace76.png"; fMedia = osImg; }
-            else if (tid === 1473) { osImg = "https://raw2.seadn.io/polygon/0x6c621364993e5cd4c6468930d287ba76ef64f366/188fe9b85250258fdf72277f09e286/e4188fe9b85250258fdf72277f09e286.png"; fMedia = osImg; }
-
-            const wrapper = document.createElement('div');
-            wrapper.className = "media-wrapper";
-            const linkA = document.createElement('a');
-            linkA.href = osLink;
-            linkA.target = "_blank";
-
-            if (VIDEO_IDS.includes(tid)) {
-                linkA.className = "partial-link";
-                wrapper.innerHTML = `<video src="${fMedia}" autoplay loop muted playsinline controls style="width:100%;height:100%;object-fit:cover;border-radius:15px;"></video>`;
-            } else {
-                linkA.className = "full-link";
-                wrapper.innerHTML = `<img src="${osImg}" referrerPolicy="no-referrer" style="width:100%;height:100%;object-fit:cover;border-radius:15px;" onerror="if(this.src != '${fMedia}') this.src='${fMedia}';">`;
-            }
-            
-            wrapper.appendChild(linkA);
-            media.appendChild(wrapper);
-
-            document.getElementById('nftTitle').innerText = meta.name || `CryptoGoro #${tid}`;
-            resultDiv.style.display = 'block';
-
-            // オーナー判定
-            fetch(`https://polygon-mainnet.g.alchemy.com/nft/v3/${API_KEY}/getOwnersForNFT?contractAddress=${CONTRACT}&tokenId=${tid}`)
-                .then(r => r.json()).then(o => {
-                    if (requestId === currentRequestId && o.owners) {
-                        const currentOwner = o.owners[0].toLowerCase();
-                        if (currentOwner === STAKING_ADDR.toLowerCase()) {
-                            ownerLink.innerText = "解析中...";
-                            stakingTag.innerText = " (Now Staking)";
-                        } else {
-                            ownerLink.innerText = currentOwner.slice(0,6) + "..." + currentOwner.slice(-4);
-                            ownerLink.href = `https://opensea.io/${currentOwner}?search[collections][0]=cryptogoros&collectionSlugs=cryptogoros`;
-                            ownerLink.className = "active";
-                        }
-                    }
-                });
-
-            // 履歴スキャン
-            const histUrl = `https://polygon-mainnet.g.alchemy.com/v2/${API_KEY}`;
-            let allT = [];
-            let pKey = null;
-
-            async function scan() {
-                if (requestId !== currentRequestId) return;
-                const body = { id: 1, jsonrpc: "2.0", method: "alchemy_getAssetTransfers", params: [{ fromBlock: "0x0", toBlock: "latest", contractAddresses: [CONTRACT], category: ["erc721"], withMetadata: true, maxCount: "0x3e8" }] };
-                if (pKey) body.params[0].pageKey = pKey;
+        async function scan() {
+            if (requestId !== currentRequestId) return;
+            const body = { id: 1, jsonrpc: "2.0", method: "alchemy_getAssetTransfers", params: [{ fromBlock: "0x0", toBlock: "latest", contractAddresses: [CONTRACT], category: ["erc721"], withMetadata: true, maxCount: "0x3e8" }] };
+            if (pKey) body.params[0].pageKey = pKey;
+            try {
                 const res = await fetch(histUrl, { method: 'POST', body: JSON.stringify(body) }).then(r => r.json());
                 if (res.result && res.result.transfers) {
                     const matched = res.result.transfers.filter(tx => {
@@ -211,64 +209,55 @@ window.onload = function() {
                         return txId === tid;
                     });
                     allT = allT.concat(matched);
-                    if (res.result.pageKey) { pKey = res.result.pageKey; await scan(); } 
-                    else { 
+                    if (res.result.pageKey) { 
+                        pKey = res.result.pageKey; 
+                        await scan(); 
+                    } else { 
                         render(allT); 
                         finalizeOwnerDisplay(allT);
                     }
                 }
+            } catch (e) {
+                hBody.innerHTML = "<tr><td>履歴取得エラー</td></tr>";
             }
-
-            function finalizeOwnerDisplay(list) {
-                if (requestId !== currentRequestId || list.length === 0) return;
-                list.sort((a, b) => b.metadata.blockTimestamp.localeCompare(a.metadata.blockTimestamp));
-                const latestTx = list[0];
-                
-                if (latestTx.to.toLowerCase() === STAKING_ADDR.toLowerCase()) {
-                    const trueOwner = latestTx.from;
-                    ownerLink.innerText = trueOwner.slice(0,6) + "..." + trueOwner.slice(-4);
-                    ownerLink.href = `https://opensea.io/${trueOwner}?search[collections][0]=cryptogoros&collectionSlugs=cryptogoros`;
-                    ownerLink.className = "active";
-                    stakingTag.innerText = " (Now Staking)";
-                }
-            }
-
-            function render(list) {
-                if (requestId !== currentRequestId) return;
-                list.sort((a, b) => b.metadata.blockTimestamp.localeCompare(a.metadata.blockTimestamp));
-                hBody.innerHTML = list.length ? "" : "<tr><td>履歴なし</td></tr>";
-                list.forEach(tx => {
-                    const d = tx.metadata?.blockTimestamp ? new Date(tx.metadata.blockTimestamp).toLocaleDateString() : "-";
-                    const from = tx.from.startsWith("0x0000") ? "Mint" : tx.from.slice(0,6) + "...";
-                    hBody.innerHTML += `<tr><td style="padding:10px 0;"><span style="color:#999; font-size:10px;">From: ${from}</span><br>To: ${tx.to.slice(0,6)}...</td><td style="text-align:right; color:#888; vertical-align:middle;">${d}</td><td style="text-align:right; vertical-align:middle;"><a href="https://polygonscan.com/tx/${tx.hash}" target="_blank" style="text-decoration:none;">📄</a></td></tr>`;
-                });
-            }
-            scan();
-
-            // Traits 表示部分
-            const traits = document.getElementById('nftTraits');
-            traits.innerHTML = "";
-            if (attrs && Array.isArray(attrs) && attrs.length > 0) {
-                attrs.forEach(a => {
-                    const type = a.trait_type || a.traitType || "Trait";
-                    const val = a.value !== undefined ? a.value : "-";
-                    const url = "https://opensea.io/collection/cryptogoros?traits=" + encodeURIComponent(JSON.stringify([{traitType: type, values: [val]}]));
-                    traits.innerHTML += `<a href="${url}" target="_blank" class="trait-card"><b>${type}</b><br>${val}</a>`;
-                });
-            } else {
-                traits.innerHTML = `<span style="color:#999; font-size:12px;">属性情報なし</span>`;
-            }
-
-        } catch (e) { 
-            console.error("fetch error:", e); 
-        } finally { 
-            if (requestId === currentRequestId) { 
-                fetchBtn.disabled = false; 
-                fetchBtn.innerText = "表示"; 
-            } 
         }
+
+        function finalizeOwnerDisplay(list) {
+            if (requestId !== currentRequestId || list.length === 0) return;
+            list.sort((a, b) => (b.metadata?.blockTimestamp || "").localeCompare(a.metadata?.blockTimestamp || ""));
+            const latestTx = list[0];
+            
+            if (latestTx && latestTx.to.toLowerCase() === STAKING_ADDR.toLowerCase()) {
+                const trueOwner = latestTx.from;
+                ownerLink.innerText = trueOwner.slice(0,6) + "..." + trueOwner.slice(-4);
+                ownerLink.href = `https://opensea.io/${trueOwner}?search[collections][0]=cryptogoros&collectionSlugs=cryptogoros`;
+                ownerLink.className = "active";
+                stakingTag.innerText = " (Now Staking)";
+            }
+        }
+
+        function render(list) {
+            if (requestId !== currentRequestId) return;
+            list.sort((a, b) => (b.metadata?.blockTimestamp || "").localeCompare(a.metadata?.blockTimestamp || ""));
+            hBody.innerHTML = list.length ? "" : "<tr><td>履歴なし</td></tr>";
+            list.forEach(tx => {
+                const d = tx.metadata?.blockTimestamp ? new Date(tx.metadata.blockTimestamp).toLocaleDateString() : "-";
+                const from = tx.from.startsWith("0x0000") ? "Mint" : tx.from.slice(0,6) + "...";
+                hBody.innerHTML += `<tr><td style="padding:10px 0;"><span style="color:#999; font-size:10px;">From: ${from}</span><br>To: ${tx.to.slice(0,6)}...</td><td style="text-align:right; color:#888; vertical-align:middle;">${d}</td><td style="text-align:right; vertical-align:middle;"><a href="https://polygonscan.com/tx/${tx.hash}" target="_blank" style="text-decoration:none;">📄</a></td></tr>`;
+            });
+        }
+
+        scan();
+
+    } catch (e) { 
+        console.error("fetch error:", e); 
+    } finally { 
+        if (requestId === currentRequestId) { 
+            fetchBtn.disabled = false; 
+            fetchBtn.innerText = "表示"; 
+        } 
     }
-};
+}
 </script>
 </body>
 </html>
