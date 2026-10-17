@@ -109,11 +109,33 @@ window.onload = function() {
 
             if (requestId !== currentRequestId) return;
 
-            const meta = data.raw?.metadata || {};
+            // --- メタデータの取得（Alchemyで空の場合は tokenUri から直接取得） ---
+            let meta = data.raw?.metadata || {};
+            
+            // Alchemy側でattributesやimageが空の場合、tokenUriから直接再取得を試みる
+            if ((!meta.attributes && !data.attributes) && data.tokenUri) {
+                try {
+                    let directUri = data.tokenUri;
+                    if (directUri.startsWith("ipfs://")) directUri = directUri.replace("ipfs://", "https://ipfs.io/ipfs/");
+                    if (directUri.startsWith("ar://")) directUri = directUri.replace("ar://", "https://arweave.net/");
+                    
+                    const directRes = await fetch(directUri);
+                    if (directRes.ok) {
+                        meta = await directRes.json();
+                    }
+                } catch (err) {
+                    console.warn("Direct tokenUri fetch failed:", err);
+                }
+            }
+
             const osLink = `https://opensea.io/assets/matic/${CONTRACT}/${tid}`;
             
-            let osImg = `https://api.opensea.io/api/v1/asset/${CONTRACT}/${tid}/image?w=600`;
-            let fMedia = (meta.animation_url || meta.image || "").replace("ipfs://", "https://ipfs.io/ipfs/").replace("ar://", "https://arweave.net/");
+            // 廃止されたOpenSea旧APIではなく、取得したメタデータやAlchemyのキャッシュURLを直接使用
+            let fMedia = (meta.animation_url || meta.image || data.image?.cachedUrl || data.image?.originalUrl || "")
+                .replace("ipfs://", "https://ipfs.io/ipfs/")
+                .replace("ar://", "https://arweave.net/");
+
+            let osImg = fMedia;
 
             // --- 個別URL対応セクション ---
             if (tid === 1625) { osImg = "https://arweave.net/MSQ8bKLDZtgGxMIq4HoouWzYcduSaVJrdQruWHuO8Lw"; fMedia = osImg; }
@@ -122,8 +144,6 @@ window.onload = function() {
             else if (tid === 1374) { fMedia = "https://arweave.net/oB86Of8T6IoWBPsKmRkxoxWPIO3oIv8QX0nLKmXuQ44"; osImg = fMedia; }
             else if (tid === 1699) { osImg = "https://arweave.net/RM80fZPU8VJBpj0Bd5SMxuFgaHoLODf8yhCB-Z9WY2s"; fMedia = osImg; }
             else if (tid === 1705) { osImg = "https://arweave.net/p5g88z6KwKVnjS7QefCGbs6myXOPwV7Mq8dtc3UEgpU"; fMedia = osImg; }
-            else if (tid === 1807) { osImg = "https://arweave.net/6ouIFbxYHizB3oZ1ZUC5tVS1LRzGBlWJ6YuAObgI5fE"; fMedia = osImg; }
-            else if (tid === 1814) { osImg = "https://arweave.net/R5dgDwfinf0TCx-XMCxGGk63f1PYF4CWsmZb4h67G7s"; fMedia = osImg; }
             // 静止画ハッシュ対応
             else if (tid === 1344) { osImg = "https://raw2.seadn.io/polygon/0x6c621364993e5cd4c6468930d287ba76ef64f366/5befc1edcc3da1dabaa1cd717c40ae/765befc1edcc3da1dabaa1cd717c40ae.gif"; fMedia = osImg; }
             else if (tid === 1413) { osImg = "https://raw2.seadn.io/polygon/0x6c621364993e5cd4c6468930d287ba76ef64f366/4fd73db65a27b898095da0158d1d4e/144fd73db65a27b898095da0158d1d4e.gif"; fMedia = osImg; }
@@ -131,81 +151,6 @@ window.onload = function() {
             else if (tid === 1446) { osImg = "https://raw2.seadn.io/polygon/0x6c621364993e5cd4c6468930d287ba76ef64f366/e616f5a259f72bf6a37589e6b6942e/c1e616f5a259f72bf6a37589e6b6942e.png"; fMedia = osImg; }
             else if (tid === 1469) { osImg = "https://raw2.seadn.io/polygon/0x6c621364993e5cd4c6468930d287ba76ef64f366/6041755764a414b23d38a22e4ace76/186041755764a414b23d38a22e4ace76.png"; fMedia = osImg; }
             else if (tid === 1473) { osImg = "https://raw2.seadn.io/polygon/0x6c621364993e5cd4c6468930d287ba76ef64f366/188fe9b85250258fdf72277f09e286/e4188fe9b85250258fdf72277f09e286.png"; fMedia = osImg; }
-            else if (tid === 1867) { osImg = "https://i2c.seadn.io/polygon/0x6c621364993e5cd4c6468930d287ba76ef64f366/f30de34c69db13c7975c50f1fc0f4c/f2f30de34c69db13c7975c50f1fc0f4c.png"; fMedia = osImg; }
-            else if (tid === 1868) { osImg = "https://raw2.seadn.io/polygon/0x6c621364993e5cd4c6468930d287ba76ef64f366/83766ba4cb6e1975f9a766e18fc777/1883766ba4cb6e1975f9a766e18fc777.gif"; fMedia = osImg; }
-            else if (tid === 1869) { osImg = "https://i2c.seadn.io/polygon/0x6c621364993e5cd4c6468930d287ba76ef64f366/66870f989515f79a19879388a9cd2a/4166870f989515f79a19879388a9cd2a.png"; fMedia = osImg; }
-            else if (tid === 1870) { osImg = "https://raw2.seadn.io/polygon/0x6c621364993e5cd4c6468930d287ba76ef64f366/879043e60b21205033b06441a395d1/db879043e60b21205033b06441a395d1.gif"; fMedia = osImg; }
-            else if (tid === 1871) { osImg = "https://raw2.seadn.io/polygon/0x6c621364993e5cd4c6468930d287ba76ef64f366/f730fb3927516d91f3fbdd17d27b64/93f730fb3927516d91f3fbdd17d27b64.gif"; fMedia = osImg; }
-            else if (tid === 1872) { osImg = "https://raw2.seadn.io/polygon/0x6c621364993e5cd4c6468930d287ba76ef64f366/cd578a476c244de9f62052b9d565ce/76cd578a476c244de9f62052b9d565ce.gif"; fMedia = osImg; }
-            else if (tid === 1873) { osImg = "https://i2c.seadn.io/polygon/0x6c621364993e5cd4c6468930d287ba76ef64f366/8ddc9851353cf1b08bb125ad3b925a/448ddc9851353cf1b08bb125ad3b925a.png"; fMedia = osImg; }
-            else if (tid === 1874) { osImg = "https://raw2.seadn.io/polygon/0x6c621364993e5cd4c6468930d287ba76ef64f366/badf2e68c1dcac8dd0acd8c17d2f15/94badf2e68c1dcac8dd0acd8c17d2f15.gif"; fMedia = osImg; }
-            else if (tid === 1875) { osImg = "https://raw2.seadn.io/polygon/0x6c621364993e5cd4c6468930d287ba76ef64f366/8e2895dbff516ea01d8b4640b2b405/7e8e2895dbff516ea01d8b4640b2b405.gif"; fMedia = osImg; }
-            else if (tid === 1876) { osImg = "https://i2c.seadn.io/polygon/0x6c621364993e5cd4c6468930d287ba76ef64f366/464b35d912a512e32dfda433d87631/3b464b35d912a512e32dfda433d87631.png"; fMedia = osImg; }
-            else if (tid === 1877) { osImg = "https://i2c.seadn.io/polygon/0x6c621364993e5cd4c6468930d287ba76ef64f366/518a03a66488cc77f5240bc07b4bcb/fb518a03a66488cc77f5240bc07b4bcb.png"; fMedia = osImg; }
-            else if (tid === 1878) { osImg = "https://raw2.seadn.io/polygon/0x6c621364993e5cd4c6468930d287ba76ef64f366/8179aad7a18555ae559b2835b613a4/758179aad7a18555ae559b2835b613a4.gif"; fMedia = osImg; }
-            else if (tid === 1879) { osImg = "https://i2c.seadn.io/polygon/0x6c621364993e5cd4c6468930d287ba76ef64f366/cb44d8f60eb50888e5f37e7378ef69/fdcb44d8f60eb50888e5f37e7378ef69.png"; fMedia = osImg; }
-            else if (tid === 1880) { osImg = "https://i2c.seadn.io/polygon/0x6c621364993e5cd4c6468930d287ba76ef64f366/44fefbdbb03c47f5612ee2d30ac4bf/9944fefbdbb03c47f5612ee2d30ac4bf.png"; fMedia = osImg; }
-            else if (tid === 1881) { osImg = "https://i2c.seadn.io/polygon/0x6c621364993e5cd4c6468930d287ba76ef64f366/a65e1b78f9e07dcd73e86cfd0edd28/c7a65e1b78f9e07dcd73e86cfd0edd28.png"; fMedia = osImg; }
-            else if (tid === 1882) { osImg = "https://i2c.seadn.io/polygon/0x6c621364993e5cd4c6468930d287ba76ef64f366/c957f61190a4052e70deb7a8bb6756/8bc957f61190a4052e70deb7a8bb6756.png"; fMedia = osImg; }
-            else if (tid === 1883) { osImg = "https://raw2.seadn.io/polygon/0x6c621364993e5cd4c6468930d287ba76ef64f366/f49cf7e7ca24305f99f3f6f3f1eb4a/fef49cf7e7ca24305f99f3f6f3f1eb4a.gif"; fMedia = osImg; }
-            else if (tid === 1884) { osImg = "https://i2c.seadn.io/polygon/0x6c621364993e5cd4c6468930d287ba76ef64f366/faa8d55bbc3f792ab6db244800b5b2/94faa8d55bbc3f792ab6db244800b5b2.png"; fMedia = osImg; }
-            else if (tid === 1885) { osImg = "https://i2c.seadn.io/polygon/0x6c621364993e5cd4c6468930d287ba76ef64f366/52d120b0bcc3a6581a299f05f1d2d9/d352d120b0bcc3a6581a299f05f1d2d9.png"; fMedia = osImg; }
-            else if (tid === 1886) { osImg = "https://raw2.seadn.io/polygon/0x6c621364993e5cd4c6468930d287ba76ef64f366/d4ecc868f60343dac673fe75f95590/59d4ecc868f60343dac673fe75f95590.gif"; fMedia = osImg; }
-            else if (tid === 1887) { osImg = "https://raw2.seadn.io/polygon/0x6c621364993e5cd4c6468930d287ba76ef64f366/680d9ae73be9a216c217916a7e9e0a/43680d9ae73be9a216c217916a7e9e0a.gif"; fMedia = osImg; }
-            else if (tid === 1888) { osImg = "https://i2c.seadn.io/polygon/0x6c621364993e5cd4c6468930d287ba76ef64f366/c97151bb41c9dc96b9e86fc5029866/98c97151bb41c9dc96b9e86fc5029866.png"; fMedia = osImg; }
-            else if (tid === 15) { osImg = "https://i2c.seadn.io/polygon/0x6c621364993e5cd4c6468930d287ba76ef64f366/7b1a99cef70dd681869e01c97c00e8/637b1a99cef70dd681869e01c97c00e8.png"; fMedia = osImg; }
-            else if (tid === 1889) { osImg = "https://i2c.seadn.io/polygon/0x6c621364993e5cd4c6468930d287ba76ef64f366/63a97893ce2a56c66d3b52d701e1e0/d363a97893ce2a56c66d3b52d701e1e0.png"; fMedia = osImg; }
-            else if (tid === 1890) { osImg = "https://i2c.seadn.io/polygon/0x6c621364993e5cd4c6468930d287ba76ef64f366/e9e5e34a533ee9affb65c337f54124/9ee9e5e34a533ee9affb65c337f54124.png"; fMedia = osImg; }
-            else if (tid === 1891) { osImg = "https://raw2.seadn.io/polygon/0x6c621364993e5cd4c6468930d287ba76ef64f366/c5a352bb7750e747715d77d47c1a61/69c5a352bb7750e747715d77d47c1a61.gif"; fMedia = osImg; }
-            else if (tid === 1858) { osImg = "https://i2c.seadn.io/polygon/0x6c621364993e5cd4c6468930d287ba76ef64f366/05663a6e261c3040bf7f9b7794c887/f405663a6e261c3040bf7f9b7794c887.png"; fMedia = osImg; }
-            else if (tid === 1857) { osImg = "https://i2c.seadn.io/polygon/0x6c621364993e5cd4c6468930d287ba76ef64f366/711b0e738b1912f30d164332f12e2c/c9711b0e738b1912f30d164332f12e2c.png"; fMedia = osImg; }
-            else if (tid === 1856) { osImg = "https://raw2.seadn.io/polygon/0x6c621364993e5cd4c6468930d287ba76ef64f366/3e4235e0aa4abc1c84789e157be9eb/e03e4235e0aa4abc1c84789e157be9eb.gif"; fMedia = osImg; }
-            else if (tid === 1855) { osImg = "https://raw2.seadn.io/polygon/0x6c621364993e5cd4c6468930d287ba76ef64f366/31485181cdde5c9264e98d4d021d5b/a831485181cdde5c9264e98d4d021d5b.gif"; fMedia = osImg; }
-            else if (tid === 1854) { osImg = "https://raw2.seadn.io/polygon/0x6c621364993e5cd4c6468930d287ba76ef64f366/5257ca9384b3cb40907cf49cfbef9b/b95257ca9384b3cb40907cf49cfbef9b.gif"; fMedia = osImg; }
-            else if (tid === 1853) { osImg = "https://raw2.seadn.io/polygon/0x6c621364993e5cd4c6468930d287ba76ef64f366/206f752a4b93ae7ca3126534c2c920/25206f752a4b93ae7ca3126534c2c920.gif"; fMedia = osImg; }
-            else if (tid === 1852) { osImg = "https://i2c.seadn.io/polygon/0x6c621364993e5cd4c6468930d287ba76ef64f366/79e43e2c4da002311b15bb54433316/0d79e43e2c4da002311b15bb54433316.png"; fMedia = osImg; }
-            else if (tid === 1851) { osImg = "https://i2c.seadn.io/polygon/0x6c621364993e5cd4c6468930d287ba76ef64f366/cd59bbd70c4cebb185256d5d26a083/accd59bbd70c4cebb185256d5d26a083.png"; fMedia = osImg; }
-            else if (tid === 1850) { osImg = "https://raw2.seadn.io/polygon/0x6c621364993e5cd4c6468930d287ba76ef64f366/2971a367b396eb0c3f117e08f4bf93/a92971a367b396eb0c3f117e08f4bf93.gif"; fMedia = osImg; }
-            else if (tid === 1846) { osImg = "https://raw2.seadn.io/polygon/0x6c621364993e5cd4c6468930d287ba76ef64f366/0130874a364a112df5c48a7cac3ca2/490130874a364a112df5c48a7cac3ca2.gif"; fMedia = osImg; }
-            else if (tid === 1844) { osImg = "https://i2c.seadn.io/polygon/0x6c621364993e5cd4c6468930d287ba76ef64f366/4c697f2f6b50dcd9a67b0d91348278/b34c697f2f6b50dcd9a67b0d91348278.png"; fMedia = osImg; }
-            else if (tid === 1843) { osImg = "https://i2c.seadn.io/polygon/0x6c621364993e5cd4c6468930d287ba76ef64f366/a8fd37ee64e6a715b133ce7c066cf2/45a8fd37ee64e6a715b133ce7c066cf2.png"; fMedia = osImg; }
-            else if (tid === 1842) { osImg = "https://raw2.seadn.io/polygon/0x6c621364993e5cd4c6468930d287ba76ef64f366/b5029257a973dc12978784a8873489/77b5029257a973dc12978784a8873489.gif"; fMedia = osImg; }
-            else if (tid === 1892) { osImg = "https://raw2.seadn.io/polygon/0x6c621364993e5cd4c6468930d287ba76ef64f366/4486db4caf3499d659c9f0fcb5a137/2a4486db4caf3499d659c9f0fcb5a137.gif"; fMedia = osImg; }
-            else if (tid === 1893) { osImg = "https://raw2.seadn.io/polygon/0x6c621364993e5cd4c6468930d287ba76ef64f366/19085975e90b175901b6f03a56b49e/3919085975e90b175901b6f03a56b49e.gif"; fMedia = osImg; }
-            else if (tid === 1894) { osImg = "https://raw2.seadn.io/polygon/0x6c621364993e5cd4c6468930d287ba76ef64f366/fe324dd3e5dc738d2f830dab30e298/b9fe324dd3e5dc738d2f830dab30e298.gif"; fMedia = osImg; }
-            else if (tid === 1895) { osImg = "https://raw2.seadn.io/polygon/0x6c621364993e5cd4c6468930d287ba76ef64f366/dc6aabce5c4c6307ce3f23fd032297/69dc6aabce5c4c6307ce3f23fd032297.gif"; fMedia = osImg; }
-            else if (tid === 1896) { osImg = "https://raw2.seadn.io/polygon/0x6c621364993e5cd4c6468930d287ba76ef64f366/b33f97171bdbf2aaa9329041988025/c1b33f97171bdbf2aaa9329041988025.gif"; fMedia = osImg; }
-            else if (tid === 1897) { osImg = "https://raw2.seadn.io/polygon/0x6c621364993e5cd4c6468930d287ba76ef64f366/75c112af944e024172366d7147f610/5e75c112af944e024172366d7147f610.gif"; fMedia = osImg; }
-
-            else if (tid === 1898) { osImg = "https://raw2.seadn.io/polygon/0x6c621364993e5cd4c6468930d287ba76ef64f366/23155a93d8e36c7578606a161b2ac4/e123155a93d8e36c7578606a161b2ac4.gif"; fMedia = osImg; }
-            
-            else if (tid === 1845) { osImg = "https://raw2.seadn.io/polygon/0x6c621364993e5cd4c6468930d287ba76ef64f366/2e000d015e7583e1d2912765265791/182e000d015e7583e1d2912765265791.mp4"; fMedia = osImg; }
-            else if (tid === 1899) { osImg = "https://i2c.seadn.io/polygon/0x6c621364993e5cd4c6468930d287ba76ef64f366/613bda8e34d3fc9478aac2f658c697/81613bda8e34d3fc9478aac2f658c697.png"; fMedia = osImg; }
-            else if (tid === 1900) { osImg = "https://i2c.seadn.io/polygon/0x6c621364993e5cd4c6468930d287ba76ef64f366/be7c1514647963b7606717a7991824/d6be7c1514647963b7606717a7991824.png?w=1000"; fMedia = osImg; }
-            else if (tid === 1901) { osImg = "https://raw2.seadn.io/polygon/0x6c621364993e5cd4c6468930d287ba76ef64f366/fb822ec7a7dc01c9c0bbc9804a2d88/23fb822ec7a7dc01c9c0bbc9804a2d88.gif"; fMedia = osImg; }
-            else if (tid === 1902) { osImg = "https://i2c.seadn.io/polygon/0x6c621364993e5cd4c6468930d287ba76ef64f366/38645b9aafb2f4e798b5d4b45844c3/ea38645b9aafb2f4e798b5d4b45844c3.png?w=1000"; fMedia = osImg; }
-            else if (tid === 1903) { osImg = "https://raw2.seadn.io/polygon/0x6c621364993e5cd4c6468930d287ba76ef64f366/c893be7ca34dd434fcedad5180d432/b5c893be7ca34dd434fcedad5180d432.gif"; fMedia = osImg; }
-            else if (tid === 1904) { osImg = "https://i2c.seadn.io/polygon/0x6c621364993e5cd4c6468930d287ba76ef64f366/6469fb3606126f0c64654f044d8a1d/f56469fb3606126f0c64654f044d8a1d.png?w=1000"; fMedia = osImg; }
-            else if (tid === 1905) { osImg = "https://i2c.seadn.io/polygon/0x6c621364993e5cd4c6468930d287ba76ef64f366/b3f61f3b12cbaad75085440ea9aa8d/d1b3f61f3b12cbaad75085440ea9aa8d.png?w=1000"; fMedia = osImg; }
-            else if (tid === 1906) { osImg = "https://i2c.seadn.io/polygon/0x6c621364993e5cd4c6468930d287ba76ef64f366/17fed5aa1a57dc772789e93160557c/2f17fed5aa1a57dc772789e93160557c.png?w=1000"; fMedia = osImg; }
-            else if (tid === 1907) { osImg = "https://i2c.seadn.io/polygon/0x6c621364993e5cd4c6468930d287ba76ef64f366/6bfdac14038c29cae0cdbeccc6b488/686bfdac14038c29cae0cdbeccc6b488.png?w=1000"; fMedia = osImg; }
-            else if (tid === 1908) { osImg = "https://i2c.seadn.io/polygon/0x6c621364993e5cd4c6468930d287ba76ef64f366/5447c90d8a03276112f806d367b18a/045447c90d8a03276112f806d367b18a.png?w=1000"; fMedia = osImg; }
-            else if (tid === 1909) { osImg = "https://raw2.seadn.io/polygon/0x6c621364993e5cd4c6468930d287ba76ef64f366/c0f05fda024e69daf223847fbd3362/a0c0f05fda024e69daf223847fbd3362.gif"; fMedia = osImg; }
-            else if (tid === 1910) { osImg = "https://i2c.seadn.io/polygon/0x6c621364993e5cd4c6468930d287ba76ef64f366/a87ec1dbbb5731152ef41e9ac4fc0d/45a87ec1dbbb5731152ef41e9ac4fc0d.png?w=1000"; fMedia = osImg; }
-            else if (tid === 1911) { osImg = "https://i2c.seadn.io/polygon/0x6c621364993e5cd4c6468930d287ba76ef64f366/7cba183e6bf40e315bbd5c4ccf3103/bd7cba183e6bf40e315bbd5c4ccf3103.png?w=1000"; fMedia = osImg; }
-            else if (tid === 1912) { osImg = "https://i2c.seadn.io/polygon/0x6c621364993e5cd4c6468930d287ba76ef64f366/12b6f0bb3c3dd79467f2118cf3835c/1012b6f0bb3c3dd79467f2118cf3835c.png?w=1000"; fMedia = osImg; }
-            else if (tid === 757) { osImg = "https://raw2.seadn.io/polygon/0x6c621364993e5cd4c6468930d287ba76ef64f366/695e8df6b61674eba331e52aa36e91/23695e8df6b61674eba331e52aa36e91.mp4"; fMedia = osImg; }
-            else if (tid === 1927) { osImg = "https://arweave.net/qxXV-2Qt5ZySjtGoSVxEvJaZAZFyuR0ehLfvInWS388"; fMedia = osImg; }
-            else if (tid === 1928) { osImg = "https://i2c.seadn.io/polygon/0x6c621364993e5cd4c6468930d287ba76ef64f366/6df00435777e8d60a48d3e5bd4ed68/e86df00435777e8d60a48d3e5bd4ed68.png"; fMedia = osImg; }
-            else if (tid === 1929) { osImg = "https://i2c.seadn.io/polygon/0x6c621364993e5cd4c6468930d287ba76ef64f366/b2db7fce54ab72972700dce765d6b9/a4b2db7fce54ab72972700dce765d6b9.png?w=1000"; fMedia = osImg; }
-            else if (tid === 1930) { osImg = "https://i2c.seadn.io/polygon/0x6c621364993e5cd4c6468930d287ba76ef64f366/6daf29d80792fbc1f3ee57e358d418/036daf29d80792fbc1f3ee57e358d418.png?w=1000"; fMedia = osImg; }
-            else if (tid === 1931) { osImg = "https://i2c.seadn.io/polygon/0x6c621364993e5cd4c6468930d287ba76ef64f366/953eb8c3f89150da587cd60023d778/86953eb8c3f89150da587cd60023d778.png?w=1000"; fMedia = osImg; }
-            else if (tid === 1932) { osImg = "https://i2c.seadn.io/polygon/0x6c621364993e5cd4c6468930d287ba76ef64f366/b126e6482979949fe184f23a109dfc/62b126e6482979949fe184f23a109dfc.png?w=1000"; fMedia = osImg; }
-            else if (tid === 1933) { osImg = "https://i2c.seadn.io/polygon/0x6c621364993e5cd4c6468930d287ba76ef64f366/8e6b5601465aaa6f6d0554c80eee48/7d8e6b5601465aaa6f6d0554c80eee48.png?w=1000"; fMedia = osImg; }
-            else if (tid === 1926) { osImg = "https://raw2.seadn.io/polygon/0x6c621364993e5cd4c6468930d287ba76ef64f366/94a75965d37636be423c825ed1fc5d/e694a75965d37636be423c825ed1fc5d.gif"; fMedia = osImg; }
-            else if (tid === 1925) { osImg = "https://i2c.seadn.io/polygon/0x6c621364993e5cd4c6468930d287ba76ef64f366/dbc16e4c0b97f183c13f4699e7fab1/27dbc16e4c0b97f183c13f4699e7fab1.png?w=1000"; fMedia = osImg; }
-
-
 
             const wrapper = document.createElement('div');
             wrapper.className = "media-wrapper";
@@ -218,14 +163,16 @@ window.onload = function() {
                 wrapper.innerHTML = `<video src="${fMedia}" autoplay loop muted playsinline controls style="width:100%;height:100%;object-fit:cover;border-radius:15px;"></video>`;
             } else {
                 linkA.className = "full-link";
-                wrapper.innerHTML = `<img src="${osImg}" referrerPolicy="no-referrer" style="width:100%;height:100%;object-fit:cover;border-radius:15px;" onerror="if(this.src != '${fMedia}') this.src='${fMedia}';">`;
+                wrapper.innerHTML = `<img src="${osImg}" referrerPolicy="no-referrer" style="width:100%;height:100%;object-fit:cover;border-radius:15px;">`;
             }
             
             wrapper.appendChild(linkA);
             media.appendChild(wrapper);
 
-            document.getElementById('nftTitle').innerText = `CryptoGoro #${tid}`;
+            document.getElementById('nftTitle').innerText = meta.name || `CryptoGoro #${tid}`;
             resultDiv.style.display = 'block';
+
+            
 
             // オーナー判定
             fetch(`https://polygon-mainnet.g.alchemy.com/nft/v3/${API_KEY}/getOwnersForNFT?contractAddress=${CONTRACT}&tokenId=${tid}`)
@@ -292,16 +239,17 @@ window.onload = function() {
                 });
             }
             scan();
-
+            // --- Traits表示部分 ---
             const traits = document.getElementById('nftTraits');
             traits.innerHTML = "";
-            const attrs = meta.attributes || data.attributes;
+            const attrs = meta.attributes || data.raw?.metadata?.attributes || data.attributes;
             if (attrs && Array.isArray(attrs)) {
                 attrs.forEach(a => {
                     const url = "https://opensea.io/collection/cryptogoros?traits=" + encodeURIComponent(JSON.stringify([{traitType:a.trait_type, values:[a.value]}]));
                     traits.innerHTML += `<a href="${url}" target="_blank" class="trait-card"><b>${a.trait_type}</b><br>${a.value}</a>`;
                 });
             }
+
 
         } catch (e) { console.error(e); } finally { if (requestId === currentRequestId) { fetchBtn.disabled = false; fetchBtn.innerText = "表示"; } }
     }
