@@ -103,7 +103,7 @@ window.onload = function() {
         hBody.innerHTML = "<tr><td>データを同期中...</td></tr>";
 
         try {
-            const nftUrl = `https://polygon-mainnet.g.alchemy.com/nft/v3/${API_KEY}/getNFTMetadata?contractAddress=${CONTRACT}&tokenId=${tid}&refreshCache=true`;
+            const nftUrl = `https://polygon-mainnet.g.alchemy.com/nft/v3/${API_KEY}/getNFTMetadata?contractAddress=${CONTRACT}&tokenId=${tid}`;
             const nftRes = await fetch(nftUrl);
             const data = await nftRes.json();
 
