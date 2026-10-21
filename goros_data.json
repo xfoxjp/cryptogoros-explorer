@@ -18084,5 +18084,48 @@
         "value": "RED LAND"
       }
     ]
+  },
+  "1936": {
+    "name": "CryptoGoro #Day1936",
+    "image": "https://i2c.seadn.io/polygon/0x6c621364993e5cd4c6468930d287ba76ef64f366/0e66f1ec78a5f03dbe0427a63cb9f1/a20e66f1ec78a5f03dbe0427a63cb9f1.gif",
+    "attributes": [
+      {
+        "trait_type": "RACE",
+        "value": "Cup"
+      },
+      {
+        "trait_type": "BACKGROUND",
+        "value": "RED LAND"
+      }
+    ]
+  },
+  "1937": {
+    "name": "CryptoGoro #Day1937",
+    "image": "https://i2c.seadn.io/polygon/0x6c621364993e5cd4c6468930d287ba76ef64f366/93c02eafdb4b52aba474b908dfea92/b093c02eafdb4b52aba474b908dfea92.gif",
+    "attributes": [
+      {
+        "trait_type": "RACE",
+        "value": "Cup"
+      },
+      {
+        "trait_type": "BACKGROUND",
+        "value": "RED LAND"
+      }
+    ]
+  },
+  "1938": {
+    "name": "CryptoGoro #Day1938",
+    "image": "https://i2c.seadn.io/polygon/0x6c621364993e5cd4c6468930d287ba76ef64f366/0236a17471d8e2ba088bd6845922a7/500236a17471d8e2ba088bd6845922a7.gif",
+    "attributes": [
+      {
+        "trait_type": "BACKGROUND",
+        "value": "RED LAND"
+      }
+    ]
+  },
+  "1939": {
+    "name": "#1939",
+    "image": "",
+    "attributes": []
   }
 }
