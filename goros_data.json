@@ -18124,8 +18124,27 @@
     ]
   },
   "1939": {
-    "name": "#1939",
-    "image": "",
-    "attributes": []
+    "name": "CryptoGoro #Day1939",
+    "image": "https://arweave.net/I2H0P3pTXYUQFvYDSehrjC1L58BddIidXiQhb753HRk",
+    "attributes": [
+      {
+        "trait_type": "BACKGROUND",
+        "value": "RED LAND"
+      }
+    ]
+  },
+  "1940": {
+    "name": "CryptoGoro #Day1940",
+    "image": "https://i2c.seadn.io/polygon/0x6c621364993e5cd4c6468930d287ba76ef64f366/34023f5cca1716eaeb10dab5370fae/ae34023f5cca1716eaeb10dab5370fae.png",
+    "attributes": [
+      {
+        "trait_type": "RACE",
+        "value": "Angel"
+      },
+      {
+        "trait_type": "BACKGROUND",
+        "value": "RED LAND"
+      }
+    ]
   }
 }
