@@ -18146,5 +18146,61 @@
         "value": "RED LAND"
       }
     ]
+  },
+  "1941": {
+    "name": "CryptoGoro #Day1941",
+    "image": "https://i2c.seadn.io/polygon/0x6c621364993e5cd4c6468930d287ba76ef64f366/2759a95382a58c2484e7af840ab4eb/3d2759a95382a58c2484e7af840ab4eb.png",
+    "attributes": [
+      {
+        "trait_type": "BACKGROUND",
+        "value": "RED LAND"
+      }
+    ]
+  },
+  "1942": {
+    "name": "CryptoGoro #Day1942",
+    "image": "https://i2c.seadn.io/polygon/0x6c621364993e5cd4c6468930d287ba76ef64f366/823795d337fc5918ada8c6ed002efb/76823795d337fc5918ada8c6ed002efb.gif",
+    "attributes": [
+      {
+        "trait_type": "BACKGROUND",
+        "value": "RED LAND"
+      }
+    ]
+  },
+  "1943": {
+    "name": "CryptoGoro #Day1943",
+    "image": "https://i2c.seadn.io/polygon/0x6c621364993e5cd4c6468930d287ba76ef64f366/45e16bd25c0f4693afecde0182f2a6/0045e16bd25c0f4693afecde0182f2a6.png",
+    "attributes": [
+      {
+        "trait_type": "HEADGEAR",
+        "value": "SwinGoro"
+      },
+      {
+        "trait_type": "COMPANION",
+        "value": "Swingo Canon NEO"
+      },
+      {
+        "trait_type": "BACKGROUND",
+        "value": "RED LAND"
+      }
+    ]
+  },
+  "1944": {
+    "name": "CryptoGoro #Day1944",
+    "image": "https://i2c.seadn.io/polygon/0x6c621364993e5cd4c6468930d287ba76ef64f366/1d8cd98f00b204e9800998ecf8427e/d41d8cd98f00b204e9800998ecf8427e.gif",
+    "attributes": [
+      {
+        "trait_type": "RACE",
+        "value": "Mareika"
+      },
+      {
+        "trait_type": "HEADGEAR",
+        "value": "Birthday Halo"
+      },
+      {
+        "trait_type": "BACKGROUND",
+        "value": "Chick LAND"
+      }
+    ]
   }
 }
