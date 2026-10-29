@@ -18202,5 +18202,43 @@
         "value": "Chick LAND"
       }
     ]
+  },
+  "1945": {
+    "name": "CryptoGoro #Day1945",
+    "image": "https://i2c.seadn.io/polygon/0x6c621364993e5cd4c6468930d287ba76ef64f366/1e044cb29fd6218d5927101b6663d2/3c1e044cb29fd6218d5927101b6663d2.gif",
+    "attributes": [
+      {
+        "trait_type": "HEADGEAR",
+        "value": "Chick Head"
+      },
+      {
+        "trait_type": "BACKGROUND",
+        "value": "Chick LAND"
+      }
+    ]
+  },
+  "1946": {
+    "name": "CryptoGoro #Day1946",
+    "image": "https://i2c.seadn.io/polygon/0x6c621364993e5cd4c6468930d287ba76ef64f366/6f7e5ff81a72b1bacb85d1c480bab4/576f7e5ff81a72b1bacb85d1c480bab4.png",
+    "attributes": [
+      {
+        "trait_type": "BACKGROUND",
+        "value": "Chick LAND"
+      }
+    ]
+  },
+  "1947": {
+    "name": "CryptoGoro #Day1947",
+    "image": "https://i2c.seadn.io/polygon/0x6c621364993e5cd4c6468930d287ba76ef64f366/16fd1cc6ba6ce071b6b9d0dc6fef84/c216fd1cc6ba6ce071b6b9d0dc6fef84.gif",
+    "attributes": [
+      {
+        "trait_type": "RACE",
+        "value": "Aoyama San"
+      },
+      {
+        "trait_type": "BACKGROUND",
+        "value": "Chick Land"
+      }
+    ]
   }
 }
