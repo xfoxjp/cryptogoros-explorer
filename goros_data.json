@@ -18187,7 +18187,7 @@
   },
   "1944": {
     "name": "CryptoGoro #Day1944",
-    "image": "https://i2c.seadn.io/polygon/0x6c621364993e5cd4c6468930d287ba76ef64f366/1d8cd98f00b204e9800998ecf8427e/d41d8cd98f00b204e9800998ecf8427e.gif",
+    "image": "https://i2c.seadn.io/polygon/0x6c621364993e5cd4c6468930d287ba76ef64f366/db785e66ffa120efbc05ef32417228/afdb785e66ffa120efbc05ef32417228.gif",
     "attributes": [
       {
         "trait_type": "RACE",
@@ -18240,5 +18240,10 @@
         "value": "Chick Land"
       }
     ]
+  },
+  "1948": {
+    "name": "#1948",
+    "image": "",
+    "attributes": []
   }
 }
