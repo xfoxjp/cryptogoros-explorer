@@ -18245,5 +18245,65 @@
     "name": "#1948",
     "image": "",
     "attributes": []
+  },
+  "1949": {
+    "name": "CryptoGoro #Day1949",
+    "image": "https://i2c.seadn.io/polygon/0x6c621364993e5cd4c6468930d287ba76ef64f366/c2fcbe5302875bd7be85e34dca4273/2bc2fcbe5302875bd7be85e34dca4273.png",
+    "attributes": [
+      {
+        "trait_type": "BACKGROUND",
+        "value": "Chick Land"
+      }
+    ]
+  },
+  "1950": {
+    "name": "CryptoGoro #Day1950",
+    "image": "https://i2c.seadn.io/polygon/0x6c621364993e5cd4c6468930d287ba76ef64f366/72388ccc5fb8a1630a5edaac1ae59f/6d72388ccc5fb8a1630a5edaac1ae59f.png",
+    "attributes": [
+      {
+        "trait_type": "BACKGROUND",
+        "value": "Chick Land"
+      }
+    ]
+  },
+  "1951": {
+    "name": "CryptoGoro #Day1951",
+    "image": "https://i2c.seadn.io/polygon/0x6c621364993e5cd4c6468930d287ba76ef64f366/339e7bbfff81845d76c889673426a0/5f339e7bbfff81845d76c889673426a0.png",
+    "attributes": [
+      {
+        "trait_type": "BACKGROUND",
+        "value": "Chick Land"
+      }
+    ]
+  },
+  "1952": {
+    "name": "CryptoGoro #Day1952",
+    "image": "https://i2c.seadn.io/polygon/0x6c621364993e5cd4c6468930d287ba76ef64f366/81c416c889e4a7f66855eb66fe8fc5/c581c416c889e4a7f66855eb66fe8fc5.gif",
+    "attributes": [
+      {
+        "trait_type": "BACKGROUND",
+        "value": "Chick Land"
+      }
+    ]
+  },
+  "1953": {
+    "name": "CryptoGoro #Day1953",
+    "image": "https://i2c.seadn.io/polygon/0x6c621364993e5cd4c6468930d287ba76ef64f366/b7d172d03ed2ef6336715b6fb04d52/37b7d172d03ed2ef6336715b6fb04d52.png",
+    "attributes": [
+      {
+        "trait_type": "BACKGROUND",
+        "value": "Chick Land"
+      }
+    ]
+  },
+  "1954": {
+    "name": "CryptoGoro #Day1954",
+    "image": "https://i2c.seadn.io/polygon/0x6c621364993e5cd4c6468930d287ba76ef64f366/151a729ffcfa6473c802cfbfc24c10/76151a729ffcfa6473c802cfbfc24c10.gif",
+    "attributes": [
+      {
+        "trait_type": "BACKGROUND",
+        "value": "Chick Land"
+      }
+    ]
   }
 }
