@@ -18242,9 +18242,18 @@
     ]
   },
   "1948": {
-    "name": "#1948",
-    "image": "",
-    "attributes": []
+    "name": "CryptoGoro #Day1948",
+    "image": "https://i2c.seadn.io/polygon/0x6c621364993e5cd4c6468930d287ba76ef64f366/6d5caf84a9db29e6ecb248e6e5e995/616d5caf84a9db29e6ecb248e6e5e995.png",
+    "attributes": [
+      {
+        "trait_type": "RACE",
+        "value": "Goroshi Nakamoto"
+      },
+      {
+        "trait_type": "BACKGROUND",
+        "value": "Chick Land"
+      }
+    ]
   },
   "1949": {
     "name": "CryptoGoro #Day1949",
