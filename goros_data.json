@@ -18314,5 +18314,72 @@
         "value": "Chick Land"
       }
     ]
+  },
+  "1955": {
+    "name": "CryptoGoro #Day1955",
+    "image": "https://i2c.seadn.io/polygon/0x6c621364993e5cd4c6468930d287ba76ef64f366/dd8c38caff9f412a9b2616c279f42c/ffdd8c38caff9f412a9b2616c279f42c.png",
+    "attributes": [
+      {
+        "trait_type": "BACKGROUND",
+        "value": "Chick Land"
+      }
+    ]
+  },
+  "1956": {
+    "name": "CryptoGoro #Day1956",
+    "image": "https://i2c.seadn.io/polygon/0x6c621364993e5cd4c6468930d287ba76ef64f366/4749a4ecfd6ad1e58af92d34288c56/644749a4ecfd6ad1e58af92d34288c56.png",
+    "attributes": [
+      {
+        "trait_type": "JOB",
+        "value": "Artist"
+      },
+      {
+        "trait_type": "BACKGROUND",
+        "value": "Chick Land"
+      }
+    ]
+  },
+  "1957": {
+    "name": "CryptoGoro #Day1957",
+    "image": "https://i2c.seadn.io/polygon/0x6c621364993e5cd4c6468930d287ba76ef64f366/df7daff5b453c7746cdfa51ce01f0a/b2df7daff5b453c7746cdfa51ce01f0a.png",
+    "attributes": [
+      {
+        "trait_type": "RACE",
+        "value": "DEMON"
+      },
+      {
+        "trait_type": "BACKGROUND",
+        "value": "Chick Land"
+      }
+    ]
+  },
+  "1958": {
+    "name": "CryptoGoro #Day1958",
+    "image": "https://i2c.seadn.io/polygon/0x6c621364993e5cd4c6468930d287ba76ef64f366/bd4b0237ed7142f1b586ce759c6e8b/f4bd4b0237ed7142f1b586ce759c6e8b.png",
+    "attributes": [
+      {
+        "trait_type": "BACKGROUND",
+        "value": "Chick Land"
+      }
+    ]
+  },
+  "1959": {
+    "name": "CryptoGoro #Day1959",
+    "image": "https://i2c.seadn.io/polygon/0x6c621364993e5cd4c6468930d287ba76ef64f366/dfaf122059b36c084a89696473f38b/fbdfaf122059b36c084a89696473f38b.png",
+    "attributes": [
+      {
+        "trait_type": "RACE",
+        "value": "Saito"
+      },
+      {
+        "trait_type": "BACKGROUND",
+        "value": "Chick Land"
+      }
+    ]
+  },
+  "1960": {
+    "name": "#1960",
+    "image": "",
+    "attributes": []
   }
 }
