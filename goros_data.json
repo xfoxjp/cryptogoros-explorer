@@ -18378,13 +18378,23 @@
     ]
   },
   "1960": {
-    "name": "#1960",
-    "image": "",
-    "attributes": []
+    "name": "CryptoGoro #Day1960",
+    "image": "https://i2c.seadn.io/polygon/0x6c621364993e5cd4c6468930d287ba76ef64f366/eead20e0cfe6593e02e506756a4639/f9eead20e0cfe6593e02e506756a4639.gif",
+    "attributes": [
+      {
+        "trait_type": "BACKGROUND",
+        "value": "Chick Land"
+      }
+    ]
   },
   "1961": {
-    "name": "#1961",
-    "image": "",
-    "attributes": []
+    "name": "CryptoGoro #Day1961",
+    "image": "https://i2c.seadn.io/polygon/0x6c621364993e5cd4c6468930d287ba76ef64f366/82eab1b64c64b283fcb7de9fbb5f35/6782eab1b64c64b283fcb7de9fbb5f35.png",
+    "attributes": [
+      {
+        "trait_type": "BACKGROUND",
+        "value": "Chick Land"
+      }
+    ]
   }
 }
