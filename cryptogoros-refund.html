@@ -1,0 +1,454 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CryptoGoros Auction Refund Checker</title>
+  <style>
+    :root {
+      --primary: #FF6600;
+      --primary-hover: #e05a00;
+      --bg: #121212;
+      --card: #1e1e1e;
+      --border: #333;
+      --text: #f0f0f0;
+      --muted: #999;
+      --success: #2ecc71;
+    }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      margin: 0;
+      padding: 24px;
+      line-height: 1.6;
+    }
+    .container {
+      max-width: 820px;
+      margin: 0 auto;
+    }
+    h1 {
+      color: var(--primary);
+      font-size: 1.5rem;
+      margin-bottom: 8px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .subtitle {
+      color: var(--muted);
+      font-size: 0.9rem;
+      margin-bottom: 24px;
+    }
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 20px;
+      margin-bottom: 20px;
+    }
+    .form-group {
+      margin-bottom: 14px;
+    }
+    label {
+      display: block;
+      font-size: 0.85rem;
+      color: var(--muted);
+      margin-bottom: 6px;
+    }
+    input {
+      width: 100%;
+      box-sizing: border-box;
+      padding: 10px 12px;
+      border-radius: 6px;
+      border: 1px solid var(--border);
+      background: #141414;
+      color: var(--text);
+      font-family: monospace;
+      font-size: 0.95rem;
+    }
+    input:focus {
+      outline: none;
+      border-color: var(--primary);
+    }
+    .btn-row {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+      margin-top: 16px;
+    }
+    button {
+      background: var(--primary);
+      color: #fff;
+      border: none;
+      padding: 10px 18px;
+      border-radius: 6px;
+      font-weight: bold;
+      cursor: pointer;
+      font-size: 0.95rem;
+      transition: background 0.15s;
+    }
+    button:hover:not(:disabled) {
+      background: var(--primary-hover);
+    }
+    button:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+    button.secondary {
+      background: #2c2c2c;
+      border: 1px solid #444;
+    }
+    button.secondary:hover:not(:disabled) {
+      background: #3a3a3a;
+    }
+    .status {
+      margin-top: 14px;
+      font-size: 0.9rem;
+      color: #ddd;
+      white-space: pre-wrap;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 12px;
+    }
+    th, td {
+      text-align: left;
+      padding: 12px;
+      border-bottom: 1px solid var(--border);
+    }
+    th {
+      color: var(--muted);
+      font-size: 0.85rem;
+    }
+    .amount {
+      font-family: monospace;
+      font-weight: bold;
+      color: var(--success);
+      font-size: 1.05rem;
+    }
+    .tx-link {
+      color: var(--primary);
+      text-decoration: none;
+      font-size: 0.85rem;
+      margin-left: 8px;
+    }
+    .tx-link:hover {
+      text-decoration: underline;
+    }
+    .summary-box {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: #251a12;
+      border: 1px solid var(--primary);
+      padding: 14px 18px;
+      border-radius: 8px;
+      margin-bottom: 16px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>CryptoGoros 未引き出しBid 一括チェック＆回収</h1>
+    <div class="subtitle">
+      Auction Contract: <code>0x2756Fb5146038dd53FB3E02727Cfa022a2f44394</code> (Polygon Mainnet)
+    </div>
+
+    <div class="card">
+      <div class="form-group">
+        <label>Alchemy API Key (Polygon Mainnet) または RPC URL</label>
+        <input type="text" id="rpcInput" placeholder="https://polygon-mainnet.g.alchemy.com/v2/xsfAkUztgC2QOCiy0ElXe" />
+      </div>
+      <div class="form-group">
+        <label>対象ウォレットアドレス（未入力の場合はウォレット接続から自動取得）</label>
+        <input type="text" id="walletInput" placeholder="0x..." />
+      </div>
+
+      <div class="btn-row">
+        <button id="connectBtn" class="secondary" onclick="connectWallet()">ウォレット接続</button>
+        <button id="scanBtn" onclick="scanUnclaimedBids()">未引き出し残高をスキャン</button>
+      </div>
+      <div id="statusLog" class="status"></div>
+    </div>
+
+    <div id="resultCard" class="card" style="display: none;">
+      <div class="summary-box">
+        <div>
+          <div style="font-size: 0.85rem; color: var(--muted);">回収可能な合計金額</div>
+          <div id="totalPolText" style="font-size: 1.4rem; font-weight: bold; color: var(--primary);">0 POL</div>
+        </div>
+        <button id="withdrawAllBtn" onclick="withdrawAllSequential()">すべて順番に引き出す</button>
+      </div>
+
+      <table>
+        <thead>
+          <tr>
+            <th>Auction ID</th>
+            <th>未引き出し金額 (POL)</th>
+            <th>操作</th>
+          </tr>
+        </thead>
+        <tbody id="resultTableBody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <script>
+    const AUCTION_CONTRACT = "0x2756Fb5146038dd53FB3E02727Cfa022a2f44394";
+    const GET_BID_AMOUNT_SELECTOR = "0xb47089b4"; // getBidAmount(uint256,address)
+    const WITHDRAW_BID_SELECTOR   = "0x0eaaf4c8"; // withdrawBid(uint256)
+    const POLYGON_CHAIN_ID_HEX    = "0x89";       // 137
+
+    let unclaimedItems = [];
+
+    function setStatus(msg) {
+      document.getElementById("statusLog").textContent = msg;
+    }
+
+    function getAlchemyUrl() {
+      const val = document.getElementById("rpcInput").value.trim();
+      if (!val) return null;
+      return val.startsWith("http") ? val : `https://polygon-mainnet.g.alchemy.com/v2/${val}`;
+    }
+
+    async function connectWallet() {
+      if (!window.ethereum) {
+        alert("MetaMask等のウォレット拡張機能が見つかりません。");
+        return null;
+      }
+      try {
+        const accounts = await window.ethereum.request({ method: "eth_requestAccounts" });
+        const addr = accounts[0];
+        document.getElementById("walletInput").value = addr;
+        document.getElementById("connectBtn").textContent = `接続済: ${addr.slice(0, 6)}...${addr.slice(-4)}`;
+        return addr;
+      } catch (err) {
+        setStatus("ウォレット接続がキャンセルされました: " + err.message);
+        return null;
+      }
+    }
+
+    async function ensurePolygonNetwork() {
+      const chainId = await window.ethereum.request({ method: "eth_chainId" });
+      if (chainId !== POLYGON_CHAIN_ID_HEX) {
+        await window.ethereum.request({
+          method: "wallet_switchEthereumChain",
+          params: [{ chainId: POLYGON_CHAIN_ID_HEX }]
+        });
+      }
+    }
+
+    async function scanUnclaimedBids() {
+      const rpcUrl = getAlchemyUrl();
+      if (!rpcUrl) {
+        alert("Alchemy APIキーまたはRPC URLを入力してください。");
+        return;
+      }
+
+      let wallet = document.getElementById("walletInput").value.trim();
+      if (!wallet) {
+        wallet = await connectWallet();
+        if (!wallet) return;
+      }
+
+      const scanBtn = document.getElementById("scanBtn");
+      scanBtn.disabled = true;
+      document.getElementById("resultCard").style.display = "none";
+      unclaimedItems = [];
+
+      try {
+        setStatus("1/2: 過去のBidトランザクション履歴を取得しています...");
+        const auctionIds = new Set();
+        let pageKey = undefined;
+
+        do {
+          const params = {
+            fromAddress: wallet,
+            toAddress: AUCTION_CONTRACT,
+            category: ["external"],
+            withMetadata: false,
+            maxCount: "0x3e8"
+          };
+          if (pageKey) params.pageKey = pageKey;
+
+          const res = await fetch(rpcUrl, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              jsonrpc: "2.0",
+              id: 1,
+              method: "alchemy_getAssetTransfers",
+              params: [params]
+            })
+          });
+          const data = await res.json();
+          if (data.error) throw new Error(data.error.message);
+
+          const transfers = data.result?.transfers || [];
+          pageKey = data.result?.pageKey;
+
+          const bidTxs = transfers.filter(tx => tx.value > 0);
+          await Promise.all(
+            bidTxs.map(async (tx) => {
+              const txRes = await fetch(rpcUrl, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  jsonrpc: "2.0",
+                  id: 1,
+                  method: "eth_getTransactionByHash",
+                  params: [tx.hash]
+                })
+              });
+              const txDetail = (await txRes.json()).result;
+              if (txDetail && txDetail.input && txDetail.input.length >= 74) {
+                const idHex = txDetail.input.slice(10, 74);
+                auctionIds.add(BigInt("0x" + idHex));
+              }
+            })
+          );
+        } while (pageKey);
+
+        const sortedIds = Array.from(auctionIds).sort((a, b) => (a < b ? -1 : 1));
+        if (sortedIds.length === 0) {
+          setStatus("完了: このウォレットからのBid履歴は見つかりませんでした。");
+          scanBtn.disabled = false;
+          return;
+        }
+
+        setStatus(`2/2: 参加した ${sortedIds.length} 件のオークションの未引き出し残高を照会中...`);
+        const paddedWallet = wallet.toLowerCase().replace("0x", "").padStart(64, "0");
+
+        const results = await Promise.all(
+          sortedIds.map(async (id) => {
+            const paddedId = id.toString(16).padStart(64, "0");
+            const callData = `${GET_BID_AMOUNT_SELECTOR}${paddedId}${paddedWallet}`;
+
+            const callRes = await fetch(rpcUrl, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                jsonrpc: "2.0",
+                id: 1,
+                method: "eth_call",
+                params: [{ to: AUCTION_CONTRACT, data: callData }, "latest"]
+              })
+            });
+            const callJson = await callRes.json();
+            if (callJson.result && callJson.result !== "0x") {
+              const balanceWei = BigInt(callJson.result);
+              if (balanceWei > 0n) {
+                return {
+                  auctionId: id.toString(),
+                  balanceWei,
+                  pol: Number(balanceWei) / 1e18
+                };
+              }
+            }
+            return null;
+          })
+        );
+
+        unclaimedItems = results.filter(Boolean);
+        renderResults();
+
+        if (unclaimedItems.length === 0) {
+          setStatus(`照会完了（全${sortedIds.length}件確認）: 未引き出しの残高はありませんでした！`);
+        } else {
+          setStatus(`照会完了（全${sortedIds.length}件確認）: ${unclaimedItems.length} 件の未引き出し残高が見つかりました。`);
+        }
+      } catch (err) {
+        setStatus("エラーが発生しました: " + err.message);
+      } finally {
+        scanBtn.disabled = false;
+      }
+    }
+
+    function renderResults() {
+      const card = document.getElementById("resultCard");
+      const tbody = document.getElementById("resultTableBody");
+      tbody.innerHTML = "";
+
+      if (unclaimedItems.length === 0) {
+        card.style.display = "none";
+        return;
+      }
+
+      card.style.display = "block";
+      const totalPol = unclaimedItems.reduce((sum, item) => sum + item.pol, 0);
+      document.getElementById("totalPolText").textContent = `${totalPol.toLocaleString(undefined, { maximumFractionDigits: 6 })} POL (${unclaimedItems.length}件)`;
+
+      unclaimedItems.forEach((item) => {
+        const tr = document.createElement("tr");
+        tr.id = `row-${item.auctionId}`;
+        tr.innerHTML = `
+          <td><strong>#${item.auctionId}</strong></td>
+          <td class="amount">${item.pol} POL</td>
+          <td id="action-${item.auctionId}">
+            <button onclick="executeWithdraw('${item.auctionId}')">Withdraw 実行</button>
+          </td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+
+    async function executeWithdraw(auctionIdStr) {
+      if (!window.ethereum) {
+        alert("MetaMask等のウォレットが見つかりません。");
+        return false;
+      }
+
+      const actionCell = document.getElementById(`action-${auctionIdStr}`);
+      const btn = actionCell.querySelector("button");
+      if (btn) btn.disabled = true;
+
+      try {
+        const accounts = await window.ethereum.request({ method: "eth_requestAccounts" });
+        await ensurePolygonNetwork();
+
+        const paddedId = BigInt(auctionIdStr).toString(16).padStart(64, "0");
+        const txData = `${WITHDRAW_BID_SELECTOR}${paddedId}`;
+
+        const txHash = await window.ethereum.request({
+          method: "eth_sendTransaction",
+          params: [{
+            from: accounts[0],
+            to: AUCTION_CONTRACT,
+            data: txData
+          }]
+        });
+
+        actionCell.innerHTML = `<span style="color: var(--success);">送信済</span> <a class="tx-link" href="https://polygonscan.com/tx/${txHash}" target="_blank" rel="noopener">Tx確認 ↗</a>`;
+        return true;
+      } catch (err) {
+        if (btn) btn.disabled = false;
+        setStatus(`#${auctionIdStr} の引き出しエラー: ${err.message}`);
+        return false;
+      }
+    }
+
+    async function withdrawAllSequential() {
+      const allBtn = document.getElementById("withdrawAllBtn");
+      allBtn.disabled = true;
+
+      for (const item of unclaimedItems) {
+        const actionCell = document.getElementById(`action-${item.auctionId}`);
+        // まだ送信済になっていない行のみ順番に実行
+        if (actionCell && actionCell.querySelector("button")) {
+          setStatus(`Auction #${item.auctionId} (${item.pol} POL) の引き出し承認をウォレットで待機中...`);
+          const ok = await executeWithdraw(item.auctionId);
+          if (!ok) {
+            setStatus(`Auction #${item.auctionId} で中断されました。`);
+            break;
+          }
+        }
+      }
+
+      allBtn.disabled = false;
+      setStatus("一括引き出し処理が完了しました。");
+    }
+  </script>
+</body>
+</html>
