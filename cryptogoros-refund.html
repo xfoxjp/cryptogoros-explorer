@@ -266,17 +266,17 @@
       unclaimedItems = [];
 
       try {
-        setStatus("1/2: 過去のWETH入札（ERC-20送金）履歴を取得しています...");
+        setStatus("1/2: オークションコントラクトへの全トランザクション履歴を取得しています...");
         const candidateIds = new Set();
         const txHashes = new Set();
         let pageKey = undefined;
 
-        // ウォレットからオークションコントラクトへのWETH(ERC-20)送金履歴を全件取得
+        // value > 0 の制限を外し、コントラクト宛の全トランザクション(WETH入札含む)を取得
         do {
           const params = {
             fromAddress: wallet,
             toAddress: AUCTION_CONTRACT,
-            category: ["erc20"],
+            category: ["external"],
             withMetadata: false,
             maxCount: "0x3e8"
           };
@@ -293,7 +293,7 @@
             })
           });
           const data = await res.json();
-          if (data.error) throw new Error(data.error.message);
+          if (data.error) throw new Error(`Alchemy API Error: ${JSON.stringify(data.error)}`);
 
           const transfers = data.result?.transfers || [];
           pageKey = data.result?.pageKey;
@@ -304,10 +304,9 @@
         } while (pageKey);
 
         const uniqueHashes = Array.from(txHashes);
-        console.log(`検出されたWETH入札トランザクション数: ${uniqueHashes.length}件`);
+        console.log(`コントラクト宛トランザクション数: ${uniqueHashes.length}件`);
 
-        // 各トランザクションのinputデータからオークションID候補を抽出
-        // （引数位置が第1引数でも第2引数でも拾えるよう、現実的なID範囲の32バイト整数を抽出）
+        // 各トランザクションのinputデータからオークションID候補をすべて抽出
         await Promise.all(
           uniqueHashes.map(async (hash) => {
             const txRes = await fetch(ALCHEMY_URL, {
@@ -326,7 +325,7 @@
               for (let i = 0; i + 64 <= argsHex.length; i += 64) {
                 const chunk = argsHex.slice(i, i + 64);
                 const val = BigInt("0x" + chunk);
-                // オークションIDとして妥当な整数（1 〜 100,000）を候補に追加（入札額Weiやアドレスを除外）
+                // オークションIDとして妥当な整数（1 〜 100,000）を候補に追加
                 if (val >= 1n && val <= 100000n) {
                   candidateIds.add(val);
                 }
@@ -339,7 +338,7 @@
         console.log("照会対象のオークションID候補:", sortedIds.map(String));
 
         if (sortedIds.length === 0) {
-          setStatus("完了: このウォレットからのWETH入札履歴は見つかりませんでした。");
+          setStatus("完了: このウォレットからの入札履歴は見つかりませんでした。");
           scanBtn.disabled = false;
           return;
         }
@@ -386,6 +385,7 @@
           setStatus(`照会完了（全${sortedIds.length}件確認）: ${unclaimedItems.length} 件の残高が見つかりました。`);
         }
       } catch (err) {
+        console.error(err);
         setStatus("エラーが発生しました: " + err.message);
       } finally {
         scanBtn.disabled = false;
