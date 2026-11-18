@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>CryptoGoros Auction Refund Checker</title>
+  <title>CryptoGoros Auction Refund Checker (WETH)</title>
   <style>
     :root {
       --primary: #FF6600;
@@ -165,7 +165,7 @@
 
     <h1>CryptoGoros 未引き出しBid 一括チェック＆回収</h1>
     <div class="subtitle">
-      Auction Contract: <code>0x2756Fb5146038dd53FB3E02727Cfa022a2f44394</code> (Polygon Mainnet)
+      Auction Contract: <code>0x2756Fb5146038dd53FB3E02727Cfa022a2f44394</code> (Polygon Mainnet / WETH)
     </div>
 
     <div class="card">
@@ -184,8 +184,8 @@
     <div id="resultCard" class="card" style="display: none;">
       <div class="summary-box">
         <div>
-          <div style="font-size: 0.85rem; color: var(--muted);">回収可能な合計金額</div>
-          <div id="totalPolText" style="font-size: 1.4rem; font-weight: bold; color: var(--primary);">0 POL</div>
+          <div style="font-size: 0.85rem; color: var(--muted);">預け入れ中 / 回収可能な合計金額</div>
+          <div id="totalWethText" style="font-size: 1.4rem; font-weight: bold; color: var(--primary);">0 WETH</div>
         </div>
         <button id="withdrawAllBtn" onclick="withdrawAllSequential()">すべて順番に引き出す</button>
       </div>
@@ -194,7 +194,7 @@
         <thead>
           <tr>
             <th>Auction ID</th>
-            <th>未引き出し金額 (POL)</th>
+            <th>残高 (WETH)</th>
             <th>操作</th>
           </tr>
         </thead>
@@ -266,15 +266,17 @@
       unclaimedItems = [];
 
       try {
-        setStatus("1/2: 過去のBidトランザクション履歴を取得しています...");
-        const auctionIds = new Set();
+        setStatus("1/2: 過去のWETH入札（ERC-20送金）履歴を取得しています...");
+        const candidateIds = new Set();
+        const txHashes = new Set();
         let pageKey = undefined;
 
+        // ウォレットからオークションコントラクトへのWETH(ERC-20)送金履歴を全件取得
         do {
           const params = {
             fromAddress: wallet,
             toAddress: AUCTION_CONTRACT,
-            category: ["external"],
+            category: ["erc20"],
             withMetadata: false,
             maxCount: "0x3e8"
           };
@@ -296,36 +298,53 @@
           const transfers = data.result?.transfers || [];
           pageKey = data.result?.pageKey;
 
-          const bidTxs = transfers.filter(tx => tx.value > 0);
-          await Promise.all(
-            bidTxs.map(async (tx) => {
-              const txRes = await fetch(ALCHEMY_URL, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                  jsonrpc: "2.0",
-                  id: 1,
-                  method: "eth_getTransactionByHash",
-                  params: [tx.hash]
-                })
-              });
-              const txDetail = (await txRes.json()).result;
-              if (txDetail && txDetail.input && txDetail.input.length >= 74) {
-                const idHex = txDetail.input.slice(10, 74);
-                auctionIds.add(BigInt("0x" + idHex));
-              }
-            })
-          );
+          for (const tx of transfers) {
+            if (tx.hash) txHashes.add(tx.hash);
+          }
         } while (pageKey);
 
-        const sortedIds = Array.from(auctionIds).sort((a, b) => (a < b ? -1 : 1));
+        const uniqueHashes = Array.from(txHashes);
+        console.log(`検出されたWETH入札トランザクション数: ${uniqueHashes.length}件`);
+
+        // 各トランザクションのinputデータからオークションID候補を抽出
+        // （引数位置が第1引数でも第2引数でも拾えるよう、現実的なID範囲の32バイト整数を抽出）
+        await Promise.all(
+          uniqueHashes.map(async (hash) => {
+            const txRes = await fetch(ALCHEMY_URL, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                jsonrpc: "2.0",
+                id: 1,
+                method: "eth_getTransactionByHash",
+                params: [hash]
+              })
+            });
+            const txDetail = (await txRes.json()).result;
+            if (txDetail && txDetail.input && txDetail.input.length >= 74) {
+              const argsHex = txDetail.input.slice(10);
+              for (let i = 0; i + 64 <= argsHex.length; i += 64) {
+                const chunk = argsHex.slice(i, i + 64);
+                const val = BigInt("0x" + chunk);
+                // オークションIDとして妥当な整数（1 〜 100,000）を候補に追加（入札額Weiやアドレスを除外）
+                if (val >= 1n && val <= 100000n) {
+                  candidateIds.add(val);
+                }
+              }
+            }
+          })
+        );
+
+        const sortedIds = Array.from(candidateIds).sort((a, b) => (a < b ? -1 : 1));
+        console.log("照会対象のオークションID候補:", sortedIds.map(String));
+
         if (sortedIds.length === 0) {
-          setStatus("完了: このウォレットからのBid履歴は見つかりませんでした。");
+          setStatus("完了: このウォレットからのWETH入札履歴は見つかりませんでした。");
           scanBtn.disabled = false;
           return;
         }
 
-        setStatus(`2/2: 参加した ${sortedIds.length} 件のオークションの未引き出し残高を照会中...`);
+        setStatus(`2/2: 参加した ${sortedIds.length} 件のオークションの残高（getBidAmount）を照会中...`);
         const paddedWallet = wallet.toLowerCase().replace("0x", "").padStart(64, "0");
 
         const results = await Promise.all(
@@ -350,7 +369,7 @@
                 return {
                   auctionId: id.toString(),
                   balanceWei,
-                  pol: Number(balanceWei) / 1e18
+                  weth: Number(balanceWei) / 1e18
                 };
               }
             }
@@ -362,9 +381,9 @@
         renderResults();
 
         if (unclaimedItems.length === 0) {
-          setStatus(`照会完了（全${sortedIds.length}件確認）: 未引き出しの残高はありませんでした！`);
+          setStatus(`照会完了（全${sortedIds.length}件確認）: 未引き出しのWETH残高はありませんでした！`);
         } else {
-          setStatus(`照会完了（全${sortedIds.length}件確認）: ${unclaimedItems.length} 件の未引き出し残高が見つかりました。`);
+          setStatus(`照会完了（全${sortedIds.length}件確認）: ${unclaimedItems.length} 件の残高が見つかりました。`);
         }
       } catch (err) {
         setStatus("エラーが発生しました: " + err.message);
@@ -384,15 +403,15 @@
       }
 
       card.style.display = "block";
-      const totalPol = unclaimedItems.reduce((sum, item) => sum + item.pol, 0);
-      document.getElementById("totalPolText").textContent = `${totalPol.toLocaleString(undefined, { maximumFractionDigits: 6 })} POL (${unclaimedItems.length}件)`;
+      const totalWeth = unclaimedItems.reduce((sum, item) => sum + item.weth, 0);
+      document.getElementById("totalWethText").textContent = `${totalWeth.toLocaleString(undefined, { maximumFractionDigits: 6 })} WETH (${unclaimedItems.length}件)`;
 
       unclaimedItems.forEach((item) => {
         const tr = document.createElement("tr");
         tr.id = `row-${item.auctionId}`;
         tr.innerHTML = `
           <td><strong>#${item.auctionId}</strong></td>
-          <td class="amount">${item.pol} POL</td>
+          <td class="amount">${item.weth} WETH</td>
           <td id="action-${item.auctionId}">
             <button onclick="executeWithdraw('${item.auctionId}')">Withdraw 実行</button>
           </td>
@@ -443,7 +462,7 @@
       for (const item of unclaimedItems) {
         const actionCell = document.getElementById(`action-${item.auctionId}`);
         if (actionCell && actionCell.querySelector("button")) {
-          setStatus(`Auction #${item.auctionId} (${item.pol} POL) の引き出し承認をウォレットで待機中...`);
+          setStatus(`Auction #${item.auctionId} (${item.weth} WETH) の引き出し承認をウォレットで待機中...`);
           const ok = await executeWithdraw(item.auctionId);
           if (!ok) {
             setStatus(`Auction #${item.auctionId} で中断されました。`);
