@@ -386,7 +386,7 @@
       });
     }
 
-    async function executeWithdraw(auctionIdStr) {
+async function executeWithdraw(auctionIdStr) {
       if (!window.ethereum) {
         alert("MetaMask等のウォレットが見つかりません。");
         return false;
@@ -408,7 +408,8 @@
           params: [{
             from: accounts[0],
             to: AUCTION_CONTRACT,
-            data: txData
+            data: txData,
+            gas: "0x30d40" // 200,000ガスを明示指定（MetaMaskの過剰見積もりバグ回避）
           }]
         });
 
@@ -420,6 +421,7 @@
         return false;
       }
     }
+    
 
     async function withdrawAllSequential() {
       const allBtn = document.getElementById("withdrawAllBtn");
