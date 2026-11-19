@@ -192,7 +192,7 @@
 
       <div class="btn-row">
         <button id="connectBtn" class="secondary" onclick="connectWallet()">ウォレット接続</button>
-        <button id="scanBtn" onclick="scanUnclaimedBids()">未引き出し残高をスキャン（100件ずつ自動分割）</button>
+        <button id="scanBtn" onclick="scanUnclaimedBids()">未引き出し残高をスキャン</button>
       </div>
       <div id="statusLog" class="status"></div>
     </div>
@@ -268,6 +268,42 @@
       }
     }
 
+    // レート制限時に自動リトライを行うバッチ取得ヘルパー
+    async function fetchBatchWithRetry(rpcBatch, batchStart, batchEnd, maxRetries = 4) {
+      for (let attempt = 1; attempt <= maxRetries; attempt++) {
+        const callRes = await fetch(ALCHEMY_URL, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(rpcBatch)
+        });
+
+        if (callRes.status === 429) {
+          setStatus(`レート制限待機中 (#${batchStart} 〜 #${batchEnd})... 再試行 (${attempt}/${maxRetries})`);
+          await sleep(1500 * attempt);
+          continue;
+        }
+
+        if (!callRes.ok) {
+          throw new Error(`HTTPエラー (${callRes.status}): API設定を確認してください`);
+        }
+
+        const responses = await callRes.json();
+        if (Array.isArray(responses)) {
+          // 配列内のいずれかに compute units 超過エラーが含まれていないか確認
+          const hasRateLimitError = responses.some(
+            (item) => item.error && (item.error.code === 429 || String(item.error.message).includes("compute units"))
+          );
+          if (hasRateLimitError) {
+            setStatus(`API負荷調整のため一時待機中 (#${batchStart} 〜 #${batchEnd})... 再試行 (${attempt}/${maxRetries})`);
+            await sleep(1500 * attempt);
+            continue;
+          }
+          return responses;
+        }
+      }
+      throw new Error(`#${batchStart} 〜 #${batchEnd} の取得でレート制限の最大リトライ回数を超えました。`);
+    }
+
     async function scanUnclaimedBids() {
       if (!ALCHEMY_API_KEY || ALCHEMY_API_KEY === "ここにAlchemyのAPIキーを貼り付け") {
         alert("HTML内の ALCHEMY_API_KEY にAPIキーを設定してください。");
@@ -299,7 +335,7 @@
 
         const paddedWallet = wallet.toLowerCase().replace("0x", "").padStart(64, "0");
         const found = [];
-        const BATCH_SIZE = 100; // 自動で100件ずつに分割
+        const BATCH_SIZE = 25; // 無料枠のCUPS上限に余裕を持たせるため25件ずつに調整
 
         for (let i = 0; i < targetIds.length; i += BATCH_SIZE) {
           const batch = targetIds.slice(i, i + BATCH_SIZE);
@@ -318,32 +354,21 @@
             };
           });
 
-          const callRes = await fetch(ALCHEMY_URL, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(rpcBatch)
-          });
+          const responses = await fetchBatchWithRetry(rpcBatch, batchStart, batchEnd);
+          responses.sort((a, b) => a.id - b.id);
 
-          if (!callRes.ok) {
-            throw new Error(`HTTPエラー (${callRes.status}): レート制限またはAPI設定を確認してください`);
-          }
-
-          const responses = await callRes.json();
-          if (Array.isArray(responses)) {
-            responses.sort((a, b) => a.id - b.id);
-            for (const item of responses) {
-              if (item.error) {
-                throw new Error(`RPCエラー (#${item.id}): ${item.error.message}`);
-              }
-              if (item.result && item.result !== "0x") {
-                const balanceWei = BigInt(item.result);
-                if (balanceWei > 0n) {
-                  found.push({
-                    auctionId: item.id.toString(),
-                    balanceWei,
-                    weth: Number(balanceWei) / 1e18
-                  });
-                }
+          for (const item of responses) {
+            if (item.error) {
+              throw new Error(`RPCエラー (#${item.id}): ${item.error.message}`);
+            }
+            if (item.result && item.result !== "0x") {
+              const balanceWei = BigInt(item.result);
+              if (balanceWei > 0n) {
+                found.push({
+                  auctionId: item.id.toString(),
+                  balanceWei,
+                  weth: Number(balanceWei) / 1e18
+                });
               }
             }
           }
@@ -352,9 +377,9 @@
           unclaimedItems = [...found];
           renderResults();
 
-          // 次の100件バッチがある場合は、Alchemyのレート制限を確実に回避するため300ms待機
+          // バッチ間に400msの待機を入れてCUPS超過を防止
           if (i + BATCH_SIZE < targetIds.length) {
-            await sleep(300);
+            await sleep(400);
           }
         }
 
