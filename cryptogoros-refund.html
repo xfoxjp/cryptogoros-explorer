@@ -220,9 +220,6 @@
   </div>
 
   <script>
-    // ==========================================
-    // ここにAlchemyのAPIキーを貼り付けてください
-    // ==========================================
     const ALCHEMY_API_KEY = "xsfAkUztgC2QOCiy0ElXe".trim();
     const ALCHEMY_URL = `https://polygon-mainnet.g.alchemy.com/v2/${ALCHEMY_API_KEY}`;
 
@@ -268,48 +265,52 @@
       }
     }
 
-    // レート制限時に自動リトライを行うバッチ取得ヘルパー
-    async function fetchBatchWithRetry(rpcBatch, batchStart, batchEnd, maxRetries = 4) {
+    // 429(CORS落ちによるFailed to fetch含む)を確実に捕捉して自動リトライするヘルパー
+    async function fetchBatchWithRetry(rpcBatch, batchStart, batchEnd, maxRetries = 5) {
       for (let attempt = 1; attempt <= maxRetries; attempt++) {
-        const callRes = await fetch(ALCHEMY_URL, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(rpcBatch)
-        });
+        try {
+          const callRes = await fetch(ALCHEMY_URL, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(rpcBatch)
+          });
 
-        if (callRes.status === 429) {
-          setStatus(`レート制限待機中 (#${batchStart} 〜 #${batchEnd})... 再試行 (${attempt}/${maxRetries})`);
-          await sleep(1500 * attempt);
-          continue;
-        }
-
-        if (!callRes.ok) {
-          throw new Error(`HTTPエラー (${callRes.status}): API設定を確認してください`);
-        }
-
-        const responses = await callRes.json();
-        if (Array.isArray(responses)) {
-          // 配列内のいずれかに compute units 超過エラーが含まれていないか確認
-          const hasRateLimitError = responses.some(
-            (item) => item.error && (item.error.code === 429 || String(item.error.message).includes("compute units"))
-          );
-          if (hasRateLimitError) {
-            setStatus(`API負荷調整のため一時待機中 (#${batchStart} 〜 #${batchEnd})... 再試行 (${attempt}/${maxRetries})`);
-            await sleep(1500 * attempt);
+          if (callRes.status === 429) {
+            setStatus(`レート制限待機中 (#${batchStart} 〜 #${batchEnd})... 再試行 (${attempt}/${maxRetries})`);
+            await sleep(2000 * attempt);
             continue;
           }
-          return responses;
+
+          if (!callRes.ok) {
+            throw new Error(`HTTPエラー (${callRes.status})`);
+          }
+
+          const responses = await callRes.json();
+          if (Array.isArray(responses)) {
+            const hasRateLimitError = responses.some(
+              (item) => item.error && (item.error.code === 429 || String(item.error.message).includes("compute units"))
+            );
+            if (hasRateLimitError) {
+              setStatus(`API負荷調整のため一時待機中 (#${batchStart} 〜 #${batchEnd})... 再試行 (${attempt}/${maxRetries})`);
+              await sleep(2000 * attempt);
+              continue;
+            }
+            return responses;
+          }
+        } catch (err) {
+          // 429応答にCORSヘッダーが付かない場合は TypeError: Failed to fetch としてここに到達する
+          if (attempt < maxRetries) {
+            setStatus(`通信制限(429)のため自動待機中 (#${batchStart} 〜 #${batchEnd})... 再試行 (${attempt}/${maxRetries})`);
+            await sleep(2000 * attempt);
+            continue;
+          }
+          throw err;
         }
       }
       throw new Error(`#${batchStart} 〜 #${batchEnd} の取得でレート制限の最大リトライ回数を超えました。`);
     }
 
     async function scanUnclaimedBids() {
-      if (!ALCHEMY_API_KEY || ALCHEMY_API_KEY === "ここにAlchemyのAPIキーを貼り付け") {
-        alert("HTML内の ALCHEMY_API_KEY にAPIキーを設定してください。");
-        return;
-      }
-
       let wallet = document.getElementById("walletInput").value.trim();
       if (!wallet) {
         wallet = await connectWallet();
@@ -335,7 +336,7 @@
 
         const paddedWallet = wallet.toLowerCase().replace("0x", "").padStart(64, "0");
         const found = [];
-        const BATCH_SIZE = 25; // 無料枠のCUPS上限に余裕を持たせるため25件ずつに調整
+        const BATCH_SIZE = 10; // 無料枠CUPS上限を絶対に超えない10件単位に設定
 
         for (let i = 0; i < targetIds.length; i += BATCH_SIZE) {
           const batch = targetIds.slice(i, i + BATCH_SIZE);
@@ -373,13 +374,12 @@
             }
           }
 
-          // 見つかった順にリアルタイムで画面へ反映
           unclaimedItems = [...found];
           renderResults();
 
-          // バッチ間に400msの待機を入れてCUPS超過を防止
+          // バッチ間に500msの待機を入れてCUPS超過を防止
           if (i + BATCH_SIZE < targetIds.length) {
-            await sleep(400);
+            await sleep(500);
           }
         }
 
@@ -447,7 +447,7 @@
             from: accounts[0],
             to: AUCTION_CONTRACT,
             data: txData,
-            gas: "0x30d40" // 200,000ガス明示指定（MetaMaskの過剰ガス見積もりバグ回避）
+            gas: "0x30d40"
           }]
         });
 
