@@ -185,14 +185,14 @@
           <input type="number" id="startIdInput" value="1" />
         </div>
         <div class="form-group">
-          <label>スキャン終了 Auction ID（現行577を含む範囲）</label>
-          <input type="number" id="endIdInput" value="620" />
+          <label>スキャン終了 Auction ID (MAX)</label>
+          <input type="number" id="endIdInput" value="611" />
         </div>
       </div>
 
       <div class="btn-row">
         <button id="connectBtn" class="secondary" onclick="connectWallet()">ウォレット接続</button>
-        <button id="scanBtn" onclick="scanUnclaimedBids()">未引き出し残高をスキャン</button>
+        <button id="scanBtn" onclick="scanUnclaimedBids()">未引き出し残高をスキャン（100件ずつ自動分割）</button>
       </div>
       <div id="statusLog" class="status"></div>
     </div>
@@ -237,6 +237,10 @@
       document.getElementById("statusLog").textContent = msg;
     }
 
+    function sleep(ms) {
+      return new Promise((resolve) => setTimeout(resolve, ms));
+    }
+
     async function connectWallet() {
       if (!window.ethereum) {
         alert("MetaMask等のウォレット拡張機能が見つかりません。");
@@ -277,7 +281,7 @@
       }
 
       const startId = parseInt(document.getElementById("startIdInput").value, 10) || 1;
-      const endId   = parseInt(document.getElementById("endIdInput").value, 10) || 620;
+      const endId   = parseInt(document.getElementById("endIdInput").value, 10) || 611;
 
       const minId = Math.max(0, Math.min(startId, endId));
       const maxId = Math.max(startId, endId);
@@ -295,13 +299,14 @@
 
         const paddedWallet = wallet.toLowerCase().replace("0x", "").padStart(64, "0");
         const found = [];
-        const BATCH_SIZE = 100; // 1回の通信に100件まとめて送信
+        const BATCH_SIZE = 100; // 自動で100件ずつに分割
 
         for (let i = 0; i < targetIds.length; i += BATCH_SIZE) {
           const batch = targetIds.slice(i, i + BATCH_SIZE);
-          setStatus(`Auction ID #${minId} 〜 #${maxId} の残高を直接照会中... (${Math.min(i + BATCH_SIZE, targetIds.length)} / ${targetIds.length}件)`);
+          const batchStart = batch[0].toString();
+          const batchEnd = batch[batch.length - 1].toString();
+          setStatus(`スキャン中: #${batchStart} 〜 #${batchEnd} （全体進捗: ${Math.min(i + BATCH_SIZE, targetIds.length)} / ${targetIds.length}件）`);
 
-          // JSON-RPC バッチリクエスト配列を構築
           const rpcBatch = batch.map((id) => {
             const paddedId = id.toString(16).padStart(64, "0");
             const callData = `${GET_BID_AMOUNT_SELECTOR}${paddedId}${paddedWallet}`;
@@ -320,14 +325,16 @@
           });
 
           if (!callRes.ok) {
-            throw new Error(`HTTPエラー (${callRes.status}): ドメイン制限(www.xfox.jp)やAPIキーを確認してください`);
+            throw new Error(`HTTPエラー (${callRes.status}): レート制限またはAPI設定を確認してください`);
           }
 
           const responses = await callRes.json();
           if (Array.isArray(responses)) {
-            // ID順にソートして結果を取り出し
             responses.sort((a, b) => a.id - b.id);
             for (const item of responses) {
+              if (item.error) {
+                throw new Error(`RPCエラー (#${item.id}): ${item.error.message}`);
+              }
               if (item.result && item.result !== "0x") {
                 const balanceWei = BigInt(item.result);
                 if (balanceWei > 0n) {
@@ -340,10 +347,16 @@
               }
             }
           }
-        }
 
-        unclaimedItems = found;
-        renderResults();
+          // 見つかった順にリアルタイムで画面へ反映
+          unclaimedItems = [...found];
+          renderResults();
+
+          // 次の100件バッチがある場合は、Alchemyのレート制限を確実に回避するため300ms待機
+          if (i + BATCH_SIZE < targetIds.length) {
+            await sleep(300);
+          }
+        }
 
         if (unclaimedItems.length === 0) {
           setStatus(`照会完了（#${minId} 〜 #${maxId} 全${targetIds.length}件確認）: 引き出し可能なWETH残高はありませんでした。`);
@@ -386,7 +399,7 @@
       });
     }
 
-async function executeWithdraw(auctionIdStr) {
+    async function executeWithdraw(auctionIdStr) {
       if (!window.ethereum) {
         alert("MetaMask等のウォレットが見つかりません。");
         return false;
@@ -409,7 +422,7 @@ async function executeWithdraw(auctionIdStr) {
             from: accounts[0],
             to: AUCTION_CONTRACT,
             data: txData,
-            gas: "0x30d40" // 200,000ガスを明示指定（MetaMaskの過剰見積もりバグ回避）
+            gas: "0x30d40" // 200,000ガス明示指定（MetaMaskの過剰ガス見積もりバグ回避）
           }]
         });
 
@@ -421,7 +434,6 @@ async function executeWithdraw(auctionIdStr) {
         return false;
       }
     }
-    
 
     async function withdrawAllSequential() {
       const allBtn = document.getElementById("withdrawAllBtn");
