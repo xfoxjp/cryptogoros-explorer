@@ -168,7 +168,7 @@
       <a href="./index.html">← CryptoGoros Explorer に戻る</a>
     </div>
 
-    <h1>CryptoGoros 未引き出しBid 一括チェック＆回収</h1>
+    <h1>WEB56オークション 未返金Bid 一括チェック＆引き出し</h1>
     <div class="subtitle">
       Auction Contract: <code>0x2756Fb5146038dd53FB3E02727Cfa022a2f44394</code> (Polygon Mainnet / WETH)
     </div>
@@ -185,14 +185,14 @@
           <input type="number" id="startIdInput" value="1" />
         </div>
         <div class="form-group">
-          <label>スキャン終了 Auction ID (MAX)</label>
+          <label>スキャン終了 Auction ID</label>
           <input type="number" id="endIdInput" value="611" />
         </div>
       </div>
 
       <div class="btn-row">
         <button id="connectBtn" class="secondary" onclick="connectWallet()">ウォレット接続</button>
-        <button id="scanBtn" onclick="scanUnclaimedBids()">未引き出し残高をスキャン</button>
+        <button id="scanBtn" onclick="scanUnclaimedBids()">未返金Bidをスキャン</button>
       </div>
       <div id="statusLog" class="status"></div>
     </div>
