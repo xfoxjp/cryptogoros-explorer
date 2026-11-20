@@ -18396,5 +18396,83 @@
         "value": "Chick Land"
       }
     ]
+  },
+  "1962": {
+    "name": "CryptoGoro #Day1962",
+    "image": "https://i2c.seadn.io/polygon/0x6c621364993e5cd4c6468930d287ba76ef64f366/678bb0b0bfd98348388ca147f9b9dc/30678bb0b0bfd98348388ca147f9b9dc.png",
+    "attributes": [
+      {
+        "trait_type": "BACKGROUND",
+        "value": "Chick Land"
+      }
+    ]
+  },
+  "1963": {
+    "name": "CryptoGoro #Day1963",
+    "image": "https://i2c.seadn.io/polygon/0x6c621364993e5cd4c6468930d287ba76ef64f366/76f7e2a05d1735e71a09486b0158b6/4276f7e2a05d1735e71a09486b0158b6.png",
+    "attributes": [
+      {
+        "trait_type": "RACE",
+        "value": "Saito"
+      },
+      {
+        "trait_type": "BACKGROUND",
+        "value": "Chick Land"
+      }
+    ]
+  },
+  "1964": {
+    "name": "CryptoGoro #Day1964",
+    "image": "https://i2c.seadn.io/polygon/0x6c621364993e5cd4c6468930d287ba76ef64f366/4385ccbd1492e51476fac31bfaf235/c54385ccbd1492e51476fac31bfaf235.png",
+    "attributes": [
+      {
+        "trait_type": "BACKGROUND",
+        "value": "Chick Land"
+      }
+    ]
+  },
+  "1965": {
+    "name": "CryptoGoro #Day1965",
+    "image": "https://i2c.seadn.io/polygon/0x6c621364993e5cd4c6468930d287ba76ef64f366/0d57e195ae7718ee16db12353e4e67/350d57e195ae7718ee16db12353e4e67.png",
+    "attributes": [
+      {
+        "trait_type": "ITEM",
+        "value": "Kinoko"
+      },
+      {
+        "trait_type": "BACKGROUND",
+        "value": "Chick Land"
+      }
+    ]
+  },
+  "1966": {
+    "name": "CryptoGoro #Day1966",
+    "image": "https://i2c.seadn.io/polygon/0x6c621364993e5cd4c6468930d287ba76ef64f366/22940196304418e2bc82657dc3bbd3/1722940196304418e2bc82657dc3bbd3.gif",
+    "attributes": [
+      {
+        "trait_type": "BACKGROUND",
+        "value": "Chick Land"
+      }
+    ]
+  },
+  "1967": {
+    "name": "CryptoGoro #Day1967",
+    "image": "https://i2c.seadn.io/polygon/0x6c621364993e5cd4c6468930d287ba76ef64f366/b369edcde09317d31ac8285e818dd5/83b369edcde09317d31ac8285e818dd5.png",
+    "attributes": [
+      {
+        "trait_type": "BACKGROUND",
+        "value": "Chick Land"
+      }
+    ]
+  },
+  "1968": {
+    "name": "CryptoGoro #Day1968",
+    "image": "https://i2c.seadn.io/polygon/0x6c621364993e5cd4c6468930d287ba76ef64f366/08e870e3d82f20e7ea1a2f846da176/4908e870e3d82f20e7ea1a2f846da176.gif",
+    "attributes": [
+      {
+        "trait_type": "RACE",
+        "value": "Egg"
+      }
+    ]
   }
 }
